@@ -30,7 +30,7 @@ No diretório do projeto devem existir os seguintes arquivos:
 Primeiro, compile o código do compilador EC1 usando o `gcc`:
 
 ```bash
-gcc -Wall -Wextra ec1_compiler.c -o ec1_compiler
+gcc -Wall -Wextra src/*.c ec1_compiler.c -o ec1_compiler
 ```
 
 Isso irá gerar o executável `ec1_compiler`.
@@ -42,7 +42,7 @@ Isso irá gerar o executável `ec1_compiler`.
 Em seguida, execute o compilador passando como argumento o arquivo `.ci` que contém a expressão EC1:
 
 ```bash
-./ec1_compiler arquivo.ci
+./ec1_compiler testes/arquivo.ci
 ```
 
 Após essa execução, será gerado automaticamente o arquivo:

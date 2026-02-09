@@ -1,0 +1,5 @@
+*.o
+
+ec1_compiler
+output.s
+programa
