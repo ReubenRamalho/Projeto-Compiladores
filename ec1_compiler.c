@@ -214,15 +214,18 @@ static void parser_init(Parser *p, const char *src) {
 static void parser_error_at(Parser *p, size_t pos, const char *msg) {
     size_t start = pos;
     while (start > 0 && p->src[start - 1] != '\n') start--;
+
     size_t end = pos;
     while (p->src[end] && p->src[end] != '\n') end++;
 
     fprintf(stderr, "Erro de sintaxe: %s\n", msg);
     fprintf(stderr, "Perto de pos %zu:\n", pos);
     fprintf(stderr, "  %.*s\n", (int)(end - start), p->src + start);
-    fprintf(stderr, "  %*s^\n", (int)(pos - start + 2), "");
+    fprintf(stderr, "  %*s^\n", (int)(pos - start), "");
+
     exit(1);
 }
+
 
 static void expect(Parser *p, TokenKind k, const char *what) {
     if (p->cur.kind != k) {
