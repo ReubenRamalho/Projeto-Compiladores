@@ -37,7 +37,7 @@ void advance(Parser *p) {
     p->cur = lexer_next(&p->lx);
 }
 
-Node *parse_expr(Parser *p) {
+Node *parse_prim(Parser *p) {
     if (p->cur.kind == TOK_INT) {
         long v = p->cur.int_value;
         advance(p);
@@ -45,20 +45,14 @@ Node *parse_expr(Parser *p) {
     }
 
     if (p->cur.kind == TOK_LPAREN) {
-        advance(p); /* '(' */
-
-        Node *left = parse_expr(p);
-
-        expect(p, TOK_OP, "um operador (+, -, *, /)");
-        char op = p->cur.op;
-        advance(p); /* op */
-
-        Node *right = parse_expr(p);
+        advance(p);
+        
+        Node *expr = parse_exp_a(p); 
 
         expect(p, TOK_RPAREN, "')'");
-        advance(p); /* ')' */
+        advance(p);
 
-        return node_binop(op, left, right);
+        return expr;
     }
 
     if (p->cur.kind == TOK_INVALID) {
@@ -66,14 +60,44 @@ Node *parse_expr(Parser *p) {
     }
 
     parser_error_at(p, p->cur.pos, "Esperava inteiro ou '('");
-    return NULL; /* unreachable */
+    return NULL;
+}
+
+Node *parse_exp_m(Parser *p) {
+    Node *left = parse_prim(p);
+
+    while (p->cur.kind == TOK_OP && (p->cur.op == '*' || p->cur.op == '/')) {
+        char op = p->cur.op;
+        advance(p);
+        
+        Node *right = parse_prim(p);
+        
+        left = node_binop(op, left, right); 
+    }
+
+    return left;
+}
+
+Node *parse_exp_a(Parser *p) {
+    Node *left = parse_exp_m(p); 
+
+    while (p->cur.kind == TOK_OP && (p->cur.op == '+' || p->cur.op == '-')) {
+        char op = p->cur.op;
+        advance(p);
+        
+        Node *right = parse_exp_m(p);
+        
+        left = node_binop(op, left, right); 
+    }
+
+    return left;
 }
 
 Node *parse_program(const char *src) {
     Parser p;
     parser_init(&p, src);
 
-    Node *ast = parse_expr(&p);
+    Node *ast = parse_exp_a(&p);
 
     if (p.cur.kind != TOK_EOF) {
         parser_error_at(&p, p.cur.pos, "Sobrou texto depois do fim da expressão");

@@ -17,6 +17,11 @@ void expect(Parser *p, TokenKind k, const char *what);
 
 void advance(Parser *p);
 
-Node *parse_expr(Parser *p);
+Node *parse_exp_a(Parser *p);
+
+Node *parse_exp_m(Parser *p);
+
+Node *parse_prim(Parser *p);
 
 Node *parse_program(const char *src);
+
