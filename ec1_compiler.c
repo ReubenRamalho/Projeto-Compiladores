@@ -1,30 +1,31 @@
 /*
- * EC1 Compiler (Expressões Constantes 1)
+ * EC2 Compiler (Expressões Constantes 2)
  *
- * Lê um arquivo .ci contendo uma expressão EC1, constrói uma AST e gera um output.s
+ * Lê um arquivo .ci contendo uma expressão EC2, constrói uma AST respeitando
+ * a precedência e associatividade dos operadores, e gera um output.s
  * que calcula a expressão e imprime usando imprime_num/sair do runtime.s.
  *
- * Gramática EC1:
- *   <programa> ::= <expressao>
- *   <expressao> ::= <literal-inteiro> | '(' <expressao> <operador> <expressao> ')'
- *   <operador> ::= '+' | '-' | '*' | '/'
- *   <literal-inteiro> ::= <digito>+
+ * Gramática EC2:
+ * <programa> ::= <exp_a>
+ * <exp_a>    ::= <exp_m> (('+' | '-') <exp_m>)*
+ * <exp_m>    ::= <prim>  (('*' | '/') <prim>)*
+ * <prim>     ::= <num>   | '(' <exp_a> ')'
+ * <num>      ::= <digito>+
  *
  * Geração de código:
- *   - Resultado final SEMPRE em %rax
- *   - Estratégia com pilha (push/pop) recomendada para evitar “falta de registradores”
- *     e preservar a ordem correta em '-' e '/'.
+ * - Resultado final SEMPRE em %rax
+ * - Estratégia com pilha (push/pop) recomendada para evitar “falta de registradores”
+ * e preservar a ordem correta em '-' e '/'.
  *
  * Saída (output.s):
- *   .section .text
- *   .globl _start
- *   _start:
- *      <codigo da expr>
- *      call imprime_num
- *      call sair
- *      .include "runtime.s"
+ * .section .text
+ * .globl _start
+ * _start:
+ * <codigo da expr>
+ * call imprime_num
+ * call sair
+ * .include "runtime.s"
  *
- * Observação: Se você usar .include "runtime.s", NÃO linke runtime.o separado.
  */
 
 #include <ctype.h>
