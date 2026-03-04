@@ -27,7 +27,7 @@ No diretório do projeto devem existir os seguintes arquivos:
 
 ### 1) Compilar o compilador
 
-Primeiro, compile o código do compilador EC1 usando o `gcc`:
+Primeiro, compile o código do compilador EC2 usando o `gcc`:
 
 ```bash
 gcc -Wall -Wextra src/*.c ec1_compiler.c -o ec1_compiler
@@ -80,7 +80,7 @@ Por fim, execute o programa gerado:
 ./programa
 ```
 
-O resultado da expressão EC1 será impresso no terminal.
+O resultado da expressão EC2 será impresso no terminal.
 
 ---
 
@@ -89,15 +89,15 @@ O resultado da expressão EC1 será impresso no terminal.
 - O compilador gera código que deixa o valor final da expressão no registrador `%rax`.
 - A impressão do resultado é feita pela função `imprime_num`, definida no `runtime.s`.
 - Não deve ser feito o link manual de `runtime.o` quando se utiliza `.include "runtime.s"`, pois isso causaria duplicação de símbolos.
-- A linguagem EC1 aceita apenas:
+- A linguagem EC2 aceita apenas:
   - literais inteiros positivos
   - operadores binários `+`, `-`, `*`, `/`
-  - expressões totalmente parentizadas
+  - Não é preciso que esteja entre parênteses
 
 Exemplo de expressão válida:
 
 ```
-( (2 + 3) * 10 )
+(2 + 3) * 10
 ```
 
 ---
