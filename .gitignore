@@ -1,6 +1,5 @@
 *.o
 
 ec1_compiler
-ec1_lexer
 output.s
 programa
