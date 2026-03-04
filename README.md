@@ -1,7 +1,7 @@
-# Compilador EC1 — Expressões Constantes
+# Compilador EC2 — Expressões Constantes sem necessidade de parênteses
 
-Este projeto implementa um compilador simples para a linguagem **EC1 (Expressões Constantes 1)**.  
-O compilador lê um arquivo `.ci` contendo uma expressão EC1, gera código assembly x86-64 e executa o programa resultante utilizando um runtime fornecido.
+Este projeto implementa um compilador simples para a linguagem **EC2 (Expressões Constantes 2)**.  
+O compilador lê um arquivo `.ci` contendo uma expressão EC2, gera código assembly x86-64 e executa o programa resultante utilizando um runtime fornecido.
 
 ---
 
@@ -17,9 +17,9 @@ O compilador lê um arquivo `.ci` contendo uma expressão EC1, gera código asse
 
 No diretório do projeto devem existir os seguintes arquivos:
 
-- `ec1_compiler.c` — código-fonte do compilador EC1  
+- `ec1_compiler.c` — código-fonte do compilador EC2  
 - `runtime.s` — runtime fornecido pelo professor  
-- `arquivo.ci` — arquivo de entrada contendo a expressão EC1  
+- `arquivo.ci` — arquivo de entrada contendo a expressão EC2  
 
 ---
 
@@ -30,16 +30,16 @@ No diretório do projeto devem existir os seguintes arquivos:
 Primeiro, compile o código do compilador EC2 usando o `gcc`:
 
 ```bash
-gcc -Wall -Wextra src/*.c ec1_compiler.c -o ec1_compiler
+gcc -Wall -Wextra src/*.c ec2_compiler.c -o ec2_compiler
 ```
 
-Isso irá gerar o executável `ec1_compiler`.
+Isso irá gerar o executável `ec2_compiler`.
 
 ---
 
 ### 2) Executar o compilador
 
-Em seguida, execute o compilador passando como argumento o arquivo `.ci` que contém a expressão EC1:
+Em seguida, execute o compilador passando como argumento o arquivo `.ci` que contém a expressão EC2:
 
 ```bash
 ./ec1_compiler testes/arquivo.ci
@@ -51,7 +51,7 @@ Após essa execução, será gerado automaticamente o arquivo:
 output.s
 ```
 
-Esse arquivo contém o código assembly x86-64 correspondente à expressão EC1, já incluindo o `runtime.s`.
+Esse arquivo contém o código assembly x86-64 correspondente à expressão EC2, já incluindo o `runtime.s`.
 
 ---
 
@@ -94,10 +94,13 @@ O resultado da expressão EC2 será impresso no terminal.
   - operadores binários `+`, `-`, `*`, `/`
   - Não é preciso que esteja entre parênteses
 
-Exemplo de expressão válida:
+Exemplos de expressões válidas:
 
 ```
 (2 + 3) * 10
+2 + 3 * 10
+( (2 + 3) * 10 )
+
 ```
 
 ---
