@@ -1,88 +1,81 @@
-# Interpretador EC1 — Expressões Constantes
+# Analisador Léxico EC1 — Expressões Constantes
 
-Este projeto implementa um analisador sintático e interpretador simples para a linguagem **EC1 (Expressões Constantes 1)**.
-
-O programa lê um arquivo `.ci` contendo uma expressão EC1, constrói a Árvore de Sintaxe Abstrata (AST) , imprime a estrutura da árvore e calcula o resultado final diretamente utilizando um interpretador de varredura de árvore (*tree-walking interpreter*).
+Este projeto implementa o analisador léxico (scanner) para a linguagem **EC1 (Expressões Constantes 1)**.  
+O programa lê um arquivo `.ci` contendo uma expressão EC1, varre o texto, ignora espaços em branco e agrupa os caracteres em uma sequência de tokens, imprimindo-os no terminal. Ele também é capaz de detectar caracteres inválidos e reportar erros léxicos.
 
 ---
 
 ## Integrantes
-
-* **ÊMILLY EDUARDA CAROLINY SILVA** – 20220166942
-* **LUIZ MANOEL BARBOSA RAMALHO** – 20220096614
-* **REUBEN LISBOA RAMALHO CLAUDINO** – 20210024602
-* **VICTOR PESSOA OLIVEIRA ORTINS** – 20210024667
+- **ÊMILLY EDUARDA CAROLINY SILVA** – 20220166942
+- **LUIZ MANOEL BARBOSA RAMALHO** – 20220096614  
+- **REUBEN LISBOA RAMALHO CLAUDINO** – 20210024602  
+- **VICTOR PESSOA OLIVEIRA ORTINS** – 20210024667  
 
 ---
 
-## Estrutura esperada
+## Estrutura
 
-No diretório do projeto devem existir os seguintes arquivos e pastas:
+No diretório do projeto existem os seguintes arquivos e pastas:
 
-* `ec1_interpreter.c` — código-fonte principal do interpretador EC1
-* `src/` — diretório contendo os arquivos `.c` e `.h` da AST, Analisador Léxico, Analisador Sintático e Utilitários
-* `arquivo.ci` — arquivo de entrada contendo a expressão EC1
+- `ec1_lexer.c` — código-fonte principal do analisador léxico  
+- `src/` — diretório contendo os arquivos `.c` e `.h` referentes ao Analisador Léxico (`lexical`) e Utilitários (`utils`).
+- `arquivo.ci` — arquivo de entrada contendo a expressão EC1  
 
 ---
 
 ## Como rodar
 
-### 1) Compilar o interpretador
+### 1) Compilar o analisador léxico
 
-Primeiro, compile o código do interpretador EC1 usando o `gcc`:
+Primeiro, compile o código usando o `gcc` (note que apenas os arquivos necessários para a análise léxica são compilados):
 
 ```bash
-gcc -Wall -Wextra src/*.c ec1_interpreter.c -o ec1_interpreter
+gcc -Wall -Wextra src/lexical.c src/utils.c ec1_lexer.c -o ec1_lexer
 
 ```
 
-Isso irá gerar o executável `ec1_interpreter`.
+Isso irá gerar o executável `ec1_lexer`.
 
 ---
 
-### 2) Executar o interpretador
+### 2) Executar o analisador léxico
 
 Em seguida, execute o programa passando como argumento o arquivo `.ci` que contém a expressão EC1:
 
 ```bash
-./ec1_interpreter testes/arquivo.ci
+./ec1_lexer testes/arquivo.ci
 
 ```
 
-A árvore sintática lida e o resultado da avaliação matemática da expressão EC1 serão impressos diretamente no terminal.
+A saída será a sequência de tokens encontrados no arquivo, formatados como:
+`<Tipo, "Lexema", Posicao>`
 
 ---
 
 ## Observações importantes
 
-* O programa executa a expressão sem traduzi-la para outra linguagem, avaliando o resultado recursivamente direto dos nós da AST.
+* O programa varre o código fonte e classifica a entrada nas seguintes classes léxicas:
+* **Número:** Constantes inteiras.
+* **Pontuação:** Parênteses esquerdos e direitos `( )`.
+* **Operadores:** `+`, `-`, `*`, `/`.
 
 
-* A linguagem EC1 aceita apenas:
+* Qualquer caractere fora deste conjunto gera uma interrupção com a mensagem de `Erro léxico na posição X`.
 
-
-* literais inteiros 
-
-
-* operadores binários `+`, `-`, `*`, `/` 
-
-
-* expressões totalmente parentizadas 
-
-
-
-
-
-Exemplo de expressão válida:
+Exemplo de entrada (`arquivo.ci`):
 
 ```
-( (2 + 3) * 10 )
+(33 + 12)
 
 ```
 
----
+Saída esperada:
 
-## Ambiente de desenvolvimento
+```
+<ParenEsq, "(", 0>
+<Numero, "33", 1>
+<Soma, "+", 4>
+<Numero, "12", 7>
+<ParenDir, ")", 9>
 
-* Sistema operacional: Linux (x86-64)
-* Compilador: `gcc`
+```
