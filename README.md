@@ -17,7 +17,7 @@ O compilador lê um arquivo `.ci` contendo uma expressão EC2, gera código asse
 
 No diretório do projeto devem existir os seguintes arquivos:
 
-- `ec1_compiler.c` — código-fonte do compilador EC2  
+- `ec2_compiler.c` — código-fonte do compilador EC2  
 - `runtime.s` — runtime fornecido pelo professor  
 - `arquivo.ci` — arquivo de entrada contendo a expressão EC2  
 
@@ -42,7 +42,7 @@ Isso irá gerar o executável `ec2_compiler`.
 Em seguida, execute o compilador passando como argumento o arquivo `.ci` que contém a expressão EC2:
 
 ```bash
-./ec1_compiler testes/arquivo.ci
+./ec2_compiler testes/arquivo.ci
 ```
 
 Após essa execução, será gerado automaticamente o arquivo:
