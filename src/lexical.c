@@ -1,8 +1,20 @@
 #include <ctype.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "lexical.h"
 #include "utils.h"
+
+static char *slice_dup(const char *src, size_t start, size_t end) {
+    size_t len = end - start;
+    char *s = (char *)malloc(len + 1);
+    if (!s) die("Sem memória");
+
+    memcpy(s, src + start, len);
+    s[len] = '\0';
+    return s;
+}
 
 void lexer_init(Lexer *lx, const char *src) {
     lx->src = src;
@@ -10,35 +22,48 @@ void lexer_init(Lexer *lx, const char *src) {
 }
 
 void lexer_skip_ws(Lexer *lx) {
-    // Pula espaço, quebra de linha, tab, etc
-    while (lx->src[lx->i] && isspace((unsigned char)lx->src[lx->i])) lx->i++;
+    while (lx->src[lx->i] && isspace((unsigned char)lx->src[lx->i])) {
+        lx->i++;
+    }
+}
+
+void token_free(Token *t) {
+    if (!t) return;
+    free(t->lexeme);
+    t->lexeme = NULL;
 }
 
 Token lexer_next(Lexer *lx) {
+    Token t;
+    char c;
+
     lexer_skip_ws(lx);
 
-    Token t;
-    t.pos = lx->i;
+    t.kind = TOK_INVALID;
     t.int_value = 0;
     t.op = 0;
+    t.lexeme = NULL;
+    t.pos = lx->i;
 
-    char c = lx->src[lx->i];
+    c = lx->src[lx->i];
+
     if (c == '\0') {
-        t.kind = TOK_EOF; // Fim do arquivo
+        t.kind = TOK_EOF;
         return t;
     }
 
-    // Identifica operador ou parênteses de boas
     if (c == '(') {
         lx->i++;
         t.kind = TOK_LPAREN;
         return t;
     }
+
     if (c == ')') {
         lx->i++;
         t.kind = TOK_RPAREN;
         return t;
     }
+
     if (c == '+' || c == '-' || c == '*' || c == '/') {
         lx->i++;
         t.kind = TOK_OP;
@@ -46,24 +71,55 @@ Token lexer_next(Lexer *lx) {
         return t;
     }
 
-    // Lida com números grandes
-    if (isdigit((unsigned char)c)) {
-        long v = 0;
-        while (isdigit((unsigned char)lx->src[lx->i])) {
-            int d = lx->src[lx->i] - '0'; // Converte o char pra int
-            
-            // Trava de segurança pra variável não dar overflow na memória
-            if (v > (LONG_MAX - d) / 10) die("Inteiro muito grande perto de pos %zu", t.pos);
-            
-            v = v * 10 + d; // Vai juntando os dígitos: 1 -> 10 -> 105...
+    if (c == '=') {
+        lx->i++;
+        t.kind = TOK_EQUAL;
+        return t;
+    }
+
+    if (c == ';') {
+        lx->i++;
+        t.kind = TOK_SEMI;
+        return t;
+    }
+
+    if (isalpha((unsigned char)c)) {
+        size_t start = lx->i;
+        lx->i++;
+
+        while (isalnum((unsigned char)lx->src[lx->i])) {
             lx->i++;
         }
+
+        t.kind = TOK_IDENT;
+        t.lexeme = slice_dup(lx->src, start, lx->i);
+        return t;
+    }
+
+    if (isdigit((unsigned char)c)) {
+        size_t start = lx->i;
+        long v = 0;
+
+        while (isdigit((unsigned char)lx->src[lx->i])) {
+            int d = lx->src[lx->i] - '0';
+
+            if (v > (LONG_MAX - d) / 10) {
+                die("Inteiro muito grande perto de pos %zu", t.pos);
+            }
+
+            v = v * 10 + d;
+            lx->i++;
+        }
+
+        if (isalpha((unsigned char)lx->src[lx->i])) {
+            die("Erro léxico perto de pos %zu: identificador não pode começar com dígito", start);
+        }
+
         t.kind = TOK_INT;
         t.int_value = v;
         return t;
     }
 
-    // Se chegou aqui e não era nada disso, lascou
     t.kind = TOK_INVALID;
     return t;
 }
