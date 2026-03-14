@@ -111,7 +111,7 @@ O compilador realiza as seguintes etapas:
 Compile o compilador com:
 
 ```bash
-gcc -Wall -Wextra -std=c11 ev_compiler.c src/ast.c src/lexical.c src/parser.c src/semantic.c src/utils.c -o ev_compiler
+gcc -Wall -Wextra src/*.c ev_compiler.c -o ev_compiler
 ```
 
 Isso irá gerar o executável:

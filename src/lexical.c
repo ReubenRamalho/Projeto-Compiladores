@@ -6,6 +6,13 @@
 #include "lexical.h"
 #include "utils.h"
 
+/**
+ * @brief Duplica uma fatia (substring) de uma string de origem.
+ * @param src String original.
+ * @param start Índice de início da fatia.
+ * @param end Índice de fim da fatia (exclusivo).
+ * @return Ponteiro para a nova string alocada terminada em '\0'.
+ */
 static char *slice_dup(const char *src, size_t start, size_t end) {
     size_t len = end - start;
     char *s = (char *)malloc(len + 1);

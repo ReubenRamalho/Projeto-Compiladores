@@ -4,6 +4,11 @@
 #include "ast.h"
 #include "utils.h"
 
+/**
+ * @brief Função auxiliar para duplicar strings com alocação segura.
+ * @param s String de origem.
+ * @return Ponteiro para a nova string alocada ou NULL se 's' for NULL.
+ */
 static char *xstrdup(const char *s) {
     size_t n;
     char *copy;
