@@ -1,6 +1,5 @@
 *.o
 
-ec1_compiler
-ec2_compiler
+*_compiler
 output.s
 programa

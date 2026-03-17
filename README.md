@@ -1,61 +1,146 @@
-# Compilador EC2 — Expressões Constantes sem necessidade de parênteses
+# Compilador EV — Expressões com Variáveis
 
-Este projeto implementa um compilador simples para a linguagem **EC2 (Expressões Constantes 2)**.  
-O compilador lê um arquivo `.ci` contendo uma expressão EC2, gera código assembly x86-64 e executa o programa resultante utilizando um runtime fornecido.
+Este projeto implementa um compilador simples para a linguagem **EV (Expressões com Variáveis)**.  
+O compilador lê um arquivo-fonte contendo declarações de variáveis e uma expressão final, constrói uma AST, realiza verificação semântica e gera código assembly x86-64.
+
+O programa gerado calcula o valor da expressão final e imprime o resultado utilizando o runtime fornecido.
 
 ---
 
 ## Integrantes
+
 - **ÊMILLY EDUARDA CAROLINY SILVA** – 20220166942
-- **LUIZ MANOEL BARBOSA RAMALHO** – 20220096614  
-- **REUBEN LISBOA RAMALHO CLAUDINO** – 20210024602  
-- **VICTOR PESSOA OLIVEIRA ORTINS** – 20210024667  
+- **LUIZ MANOEL BARBOSA RAMALHO** – 20220096614
+- **REUBEN LISBOA RAMALHO CLAUDINO** – 20210024602
+- **VICTOR PESSOA OLIVEIRA ORTINS** – 20210024667
 
 ---
 
-## Estrutura esperada
+## Estrutura do projeto
 
-No diretório do projeto devem existir os seguintes arquivos:
+No diretório do projeto, espera-se uma organização semelhante a esta:
 
-- `ec2_compiler.c` — código-fonte do compilador EC2  
-- `runtime.s` — runtime fornecido pelo professor  
-- `arquivo.ci` — arquivo de entrada contendo a expressão EC2  
+```text
+.
+├── ev_compiler.c
+├── runtime.s
+├── README.md
+├── testes/
+│   └── exemplo.ev
+└── src/
+    ├── ast.c
+    ├── ast.h
+    ├── lexical.c
+    ├── lexical.h
+    ├── parser.c
+    ├── parser.h
+    ├── semantic.c
+    ├── semantic.h
+    ├── utils.c
+    └── utils.h
+````
+
+### Função de cada arquivo
+
+* `ev_compiler.c` — ponto de entrada do compilador e geração do `output.s`
+* `src/ast.*` — estruturas da árvore sintática abstrata
+* `src/lexical.*` — analisador léxico
+* `src/parser.*` — analisador sintático
+* `src/semantic.*` — análise semântica
+* `src/utils.*` — funções utilitárias
+* `runtime.s` — runtime fornecido pelo professor
 
 ---
 
-## Como rodar
+## Gramática da linguagem EV
 
-### 1) Compilar o compilador
+A linguagem EV segue a gramática abaixo:
 
-Primeiro, compile o código do compilador EC2 usando o `gcc`:
-
-```bash
-gcc -Wall -Wextra src/*.c ec2_compiler.c -o ec2_compiler
+```text
+<programa> ::= <decl>* <result>
+<decl>     ::= <ident> '=' <exp> ';'
+<result>   ::= '=' <exp>
+<exp>      ::= <exp_m> (('+' | '-') <exp_m>)*
+<exp_m>    ::= <prim> (('*' | '/') <prim>)*
+<prim>     ::= <num> | <ident> | '(' <exp> ')'
 ```
 
-Isso irá gerar o executável `ec2_compiler`.
+### Exemplo de programa válido
+
+```text
+x = (7 + 4) * 12;
+y = x * 3 + 11;
+= (x * y) + (x * 11) + (y * 13)
+```
 
 ---
 
-### 2) Executar o compilador
+## Funcionalidades implementadas
 
-Em seguida, execute o compilador passando como argumento o arquivo `.ci` que contém a expressão EC2:
+O compilador realiza as seguintes etapas:
+
+1. **Análise léxica**
+
+   * reconhece inteiros
+   * reconhece identificadores
+   * reconhece operadores `+`, `-`, `*`, `/`
+   * reconhece `=`, `;`, `(` e `)`
+
+2. **Análise sintática**
+
+   * constrói a AST do programa
+   * respeita precedência entre operadores
+   * respeita associatividade à esquerda
+
+3. **Análise semântica**
+
+   * verifica uso de variável antes da declaração
+   * verifica redeclaração de variável
+
+4. **Geração de código**
+
+   * cria variáveis na seção `.bss`
+   * gera código para declarações
+   * gera código para a expressão final
+   * imprime o resultado com `imprime_num`
+
+---
+
+## Como compilar
+
+Compile o compilador com:
 
 ```bash
-./ec2_compiler testes/arquivo.ci
+gcc -Wall -Wextra src/*.c ev_compiler.c -o ev_compiler
+```
+
+Isso irá gerar o executável:
+
+```text
+ev_compiler
+```
+
+---
+
+## Como executar
+
+Execute o compilador passando como argumento um arquivo `.ev`:
+
+```bash
+./ev_compiler testes/exemplo.ev
 ```
 
 Após essa execução, será gerado automaticamente o arquivo:
 
-```
+```text
 output.s
 ```
 
-Esse arquivo contém o código assembly x86-64 correspondente à expressão EC2, já incluindo o `runtime.s`.
+Esse arquivo contém o código assembly x86-64 correspondente ao programa EV, já incluindo o `runtime.s`.
 
 ---
 
-### 3) Montar e linkar o código assembly
+## Como montar e linkar o assembly gerado
 
 Como o arquivo `output.s` já contém a diretiva:
 
@@ -63,7 +148,9 @@ Como o arquivo `output.s` já contém a diretiva:
 .include "runtime.s"
 ```
 
-não é necessário montar o runtime separadamente. Basta executar:
+não é necessário montar o runtime separadamente.
+
+Basta executar:
 
 ```bash
 as -o output.o output.s
@@ -72,41 +159,119 @@ ld -o programa output.o
 
 ---
 
-### 4) Executar o programa final
+## Como executar o programa final
 
-Por fim, execute o programa gerado:
+Depois de montar e linkar, execute:
 
 ```bash
 ./programa
 ```
 
-O resultado da expressão EC2 será impresso no terminal.
+O valor da expressão final será impresso no terminal.
+
+---
+
+## Exemplo completo
+
+### Arquivo `teste.ev`
+
+```text
+x = 10;
+y = x + 5;
+= y * 2
+```
+
+### Comandos
+
+```bash
+./ev_compiler teste.ev
+as -o output.o output.s
+ld -o programa output.o
+./programa
+```
+
+### Saída esperada
+
+```text
+30
+```
+
+---
+
+## Exemplo de erro semântico
+
+O programa abaixo é inválido:
+
+```text
+x = y + 1;
+y = 10;
+= x + y
+```
+
+Nesse caso, o compilador deve acusar erro semântico, pois a variável `y` foi usada antes de ser declarada.
+
+Outro exemplo inválido:
+
+```text
+x = 10;
+x = 20;
+= x
+```
+
+Nesse caso, o compilador deve acusar redeclaração de variável.
 
 ---
 
 ## Observações importantes
 
-- O compilador gera código que deixa o valor final da expressão no registrador `%rax`.
-- A impressão do resultado é feita pela função `imprime_num`, definida no `runtime.s`.
-- Não deve ser feito o link manual de `runtime.o` quando se utiliza `.include "runtime.s"`, pois isso causaria duplicação de símbolos.
-- A linguagem EC2 aceita apenas:
-  - literais inteiros positivos
-  - operadores binários `+`, `-`, `*`, `/`
-  - Não é preciso que esteja entre parênteses
+* O resultado final de cada expressão é deixado no registrador `%rax`.
+* A estratégia de geração usa pilha (`push`/`pop`) para preservar a ordem correta das operações.
+* As variáveis são alocadas na seção `.bss` com `.lcomm`.
+* A impressão é feita pela função `imprime_num`, definida em `runtime.s`.
+* Não deve ser feito o link manual de `runtime.o` quando se usa `.include "runtime.s"`.
+* Os identificadores devem começar com letra.
+* A linguagem aceita:
 
-Exemplos de expressões válidas:
-
-```
-(2 + 3) * 10
-2 + 3 * 10
-( (2 + 3) * 10 )
-
-```
+  * inteiros positivos
+  * identificadores
+  * operadores binários `+`, `-`, `*`, `/`
+  * parênteses para agrupamento
+  * declarações com `;`
+  * uma expressão final iniciada por `=`
 
 ---
 
 ## Ambiente de desenvolvimento
 
-- Sistema operacional: Linux (x86-64)
-- Compilador: `gcc`
-- Montador e linker: `as` e `ld` (GNU binutils)
+* Sistema operacional: Linux (x86-64)
+* Compilador C: `gcc`
+* Montador e linker: `as` e `ld` (GNU binutils)
+
+---
+
+## Extensão dos arquivos de entrada
+
+Os arquivos-fonte desta atividade usam a extensão:
+
+```text
+.ev
+```
+
+Exemplo:
+
+```text
+programa.ev
+```
+
+---
+
+## Resumo
+
+Este compilador implementa uma pequena linguagem com variáveis, realizando:
+
+* análise léxica
+* análise sintática
+* análise semântica
+* geração de assembly x86-64
+
+Ao final, ele produz um executável que avalia a expressão final do programa e imprime o resultado.
