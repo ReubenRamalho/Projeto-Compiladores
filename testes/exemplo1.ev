@@ -1,4 +1,0 @@
-goals = 2 * 3;
-assists = 5;
-points = (goals * 3) + assists;
-= points * 2

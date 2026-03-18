@@ -4,11 +4,6 @@
 #include "ast.h"
 #include "utils.h"
 
-/**
- * @brief Função auxiliar para duplicar strings com alocação segura.
- * @param s String de origem.
- * @return Ponteiro para a nova string alocada ou NULL se 's' for NULL.
- */
 static char *xstrdup(const char *s) {
     size_t n;
     char *copy;
@@ -41,7 +36,7 @@ Expr *expr_var(const char *name) {
     return e;
 }
 
-Expr *expr_binop(char op, Expr *left, Expr *right) {
+Expr *expr_binop(BinOpKind op, Expr *left, Expr *right) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
 
@@ -86,18 +81,125 @@ void decl_free(Decl *d) {
     free(d);
 }
 
+void cmd_list_init(CmdList *list) {
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+void cmd_list_add(CmdList *list, Cmd *cmd) {
+    Cmd **new_items;
+    size_t new_capacity;
+
+    if (!list || !cmd) return;
+
+    if (list->count == list->capacity) {
+        new_capacity = (list->capacity == 0) ? 4 : list->capacity * 2;
+        new_items = (Cmd **)realloc(list->items, new_capacity * sizeof(Cmd *));
+        if (!new_items) die("Sem memória");
+
+        list->items = new_items;
+        list->capacity = new_capacity;
+    }
+
+    list->items[list->count++] = cmd;
+}
+
+static CmdList cmd_list_clone(const CmdList *src) {
+    CmdList list;
+    size_t i;
+
+    cmd_list_init(&list);
+    for (i = 0; i < src->count; i++) {
+        cmd_list_add(&list, src->items[i]);
+    }
+    return list;
+}
+
+void cmd_list_free(CmdList *list) {
+    size_t i;
+
+    if (!list) return;
+
+    for (i = 0; i < list->count; i++) {
+        cmd_free(list->items[i]);
+    }
+
+    free(list->items);
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+Cmd *cmd_assign(const char *name, Expr *value) {
+    Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
+    if (!cmd) die("Sem memória");
+
+    cmd->kind = CMD_ASSIGN;
+    cmd->as.assign.name = xstrdup(name);
+    cmd->as.assign.value = value;
+    return cmd;
+}
+
+Cmd *cmd_if(Expr *condition, const CmdList *then_branch, const CmdList *else_branch) {
+    Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
+    if (!cmd) die("Sem memória");
+
+    cmd->kind = CMD_IF;
+    cmd->as.if_cmd.condition = condition;
+    cmd->as.if_cmd.then_branch = cmd_list_clone(then_branch);
+    cmd->as.if_cmd.else_branch = cmd_list_clone(else_branch);
+    return cmd;
+}
+
+Cmd *cmd_while(Expr *condition, const CmdList *body) {
+    Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
+    if (!cmd) die("Sem memória");
+
+    cmd->kind = CMD_WHILE;
+    cmd->as.while_cmd.condition = condition;
+    cmd->as.while_cmd.body = cmd_list_clone(body);
+    return cmd;
+}
+
+void cmd_free(Cmd *cmd) {
+    if (!cmd) return;
+
+    switch (cmd->kind) {
+        case CMD_ASSIGN:
+            free(cmd->as.assign.name);
+            expr_free(cmd->as.assign.value);
+            break;
+        case CMD_IF:
+            expr_free(cmd->as.if_cmd.condition);
+            cmd_list_free(&cmd->as.if_cmd.then_branch);
+            cmd_list_free(&cmd->as.if_cmd.else_branch);
+            break;
+        case CMD_WHILE:
+            expr_free(cmd->as.while_cmd.condition);
+            cmd_list_free(&cmd->as.while_cmd.body);
+            break;
+    }
+
+    free(cmd);
+}
+
 Program *program_new(void) {
     Program *p = (Program *)calloc(1, sizeof(Program));
     if (!p) die("Sem memória");
+    cmd_list_init(&p->body);
     return p;
 }
 
 void program_add_decl(Program *p, Decl *d) {
+    Decl **new_data;
+    size_t new_capacity;
+
     if (!p || !d) return;
 
     if (p->decl_count == p->decl_capacity) {
-        size_t new_capacity = (p->decl_capacity == 0) ? 4 : p->decl_capacity * 2;
-        Decl **new_data = (Decl **)realloc(p->decls, new_capacity * sizeof(Decl *));
+        new_capacity = (p->decl_capacity == 0) ? 4 : p->decl_capacity * 2;
+        new_data = (Decl **)realloc(p->decls, new_capacity * sizeof(Decl *));
         if (!new_data) die("Sem memória");
 
         p->decls = new_data;
@@ -105,6 +207,11 @@ void program_add_decl(Program *p, Decl *d) {
     }
 
     p->decls[p->decl_count++] = d;
+}
+
+void program_set_body(Program *p, const CmdList *body) {
+    if (!p || !body) return;
+    p->body = cmd_list_clone(body);
 }
 
 void program_set_result(Program *p, Expr *result_expr) {
@@ -122,6 +229,7 @@ void program_free(Program *p) {
     }
 
     free(p->decls);
+    cmd_list_free(&p->body);
     expr_free(p->result_expr);
     free(p);
 }

@@ -16,17 +16,21 @@ void die(const char *fmt, ...) {
 
 char *read_entire_file(const char *path) {
     FILE *f = fopen(path, "rb");
+    long n;
+    char *buf;
+    size_t got;
+
     if (!f) die("Erro abrindo '%s': %s", path, strerror(errno));
 
     if (fseek(f, 0, SEEK_END) != 0) die("fseek falhou");
-    long n = ftell(f);
+    n = ftell(f);
     if (n < 0) die("ftell falhou");
     rewind(f);
 
-    char *buf = (char *)malloc((size_t)n + 1);
+    buf = (char *)malloc((size_t)n + 1);
     if (!buf) die("Sem memória");
 
-    size_t got = fread(buf, 1, (size_t)n, f);
+    got = fread(buf, 1, (size_t)n, f);
     fclose(f);
 
     if (got != (size_t)n) die("Leitura incompleta");

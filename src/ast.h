@@ -3,10 +3,20 @@
 #include <stddef.h>
 
 /**
- * @brief Tipos de expressões da AST.
- *
- * A linguagem EV adiciona a possibilidade de declarar e usar variáveis[cite: 16].
- * Dessa forma, temos tipos para inteiros, variáveis e operações binárias.
+ * @brief Operadores binários suportados pela linguagem Cmd.
+ */
+typedef enum {
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_LT,
+    OP_GT,
+    OP_EQ
+} BinOpKind;
+
+/**
+ * @brief Tipos de expressão da AST.
  */
 typedef enum {
     EXPR_INT,
@@ -15,11 +25,7 @@ typedef enum {
 } ExprKind;
 
 /**
- * @brief Nó de expressão da árvore de sintaxe abstrata (AST).
- *
- * Um novo tipo de expressão primária na linguagem EV é uma variável[cite: 61].
- * O nó armazena o tipo da expressão (kind) e uma união com os dados 
- * específicos correspondentes (valor inteiro, nome da variável ou operandos binários).
+ * @brief Nó de expressão da AST.
  */
 typedef struct Expr {
     ExprKind kind;
@@ -27,7 +33,7 @@ typedef struct Expr {
         long int_value;
         char *var_name;
         struct {
-            char op;
+            BinOpKind op;
             struct Expr *left;
             struct Expr *right;
         } binop;
@@ -35,10 +41,7 @@ typedef struct Expr {
 } Expr;
 
 /**
- * @brief Representa uma declaração de variável.
- *
- * Cada declaração começa com um identificador (usado como nome de variável) seguido por um sinal de igual e uma expressão[cite: 40].
- * O nó da árvore sintática para uma declaração deve guardar o nome da variável e a expressão[cite: 84].
+ * @brief Declaração de variável feita antes do corpo do programa.
  */
 typedef struct {
     char *name;
@@ -46,84 +49,83 @@ typedef struct {
 } Decl;
 
 /**
- * @brief Nó raiz da árvore de sintaxe abstrata do programa[cite: 82].
- *
- * Um programa é uma sequência de zero ou mais declarações, terminando por uma expressão final obrigatória[cite: 63].
- * Este nó encapsula as declarações em um array dinâmico e guarda um ponteiro para a expressão final[cite: 82].
+ * @brief Tipos de comandos da linguagem Cmd.
+ */
+typedef enum {
+    CMD_ASSIGN,
+    CMD_IF,
+    CMD_WHILE
+} CmdKind;
+
+struct Cmd;
+typedef struct Cmd Cmd;
+
+/**
+ * @brief Lista dinâmica de comandos.
  */
 typedef struct {
-    Decl   **decls;
-    size_t   decl_count;
-    size_t   decl_capacity;
-    Expr    *result_expr;
+    Cmd **items;
+    size_t count;
+    size_t capacity;
+} CmdList;
+
+/**
+ * @brief Nó de comando da AST.
+ */
+struct Cmd {
+    CmdKind kind;
+    union {
+        struct {
+            char *name;
+            Expr *value;
+        } assign;
+        struct {
+            Expr *condition;
+            CmdList then_branch;
+            CmdList else_branch;
+        } if_cmd;
+        struct {
+            Expr *condition;
+            CmdList body;
+        } while_cmd;
+    } as;
+};
+
+/**
+ * @brief Programa completo da linguagem Cmd.
+ *
+ * Um programa possui:
+ * - zero ou mais declarações iniciais;
+ * - um bloco com zero ou mais comandos;
+ * - uma expressão final introduzida por return.
+ */
+typedef struct {
+    Decl **decls;
+    size_t decl_count;
+    size_t decl_capacity;
+    CmdList body;
+    Expr *result_expr;
 } Program;
 
-/**
- * @brief Cria um nó de expressão do tipo inteiro.
- * @param v O valor numérico do inteiro.
- * @return Ponteiro para o nó de expressão criado.
- */
 Expr *expr_int(long v);
-
-/**
- * @brief Cria um nó de expressão do tipo variável.
- * @param name O identificador (nome) da variável.
- * @return Ponteiro para o nó de expressão criado.
- */
 Expr *expr_var(const char *name);
-
-/**
- * @brief Cria um nó de expressão do tipo operação binária.
- * @param op O caractere representando a operação ('+', '-', '*', '/').
- * @param left Ponteiro para a expressão do lado esquerdo.
- * @param right Ponteiro para a expressão do lado direito.
- * @return Ponteiro para o nó de expressão criado.
- */
-Expr *expr_binop(char op, Expr *left, Expr *right);
-
-/**
- * @brief Libera a memória alocada por um nó de expressão e seus sub-nós.
- * @param e Ponteiro para a expressão a ser liberada.
- */
+Expr *expr_binop(BinOpKind op, Expr *left, Expr *right);
 void expr_free(Expr *e);
 
-/**
- * @brief Cria um novo nó de declaração de variável.
- * @param name Nome da variável sendo declarada.
- * @param value Expressão atribuída à variável.
- * @return Ponteiro para o nó de declaração criado.
- */
 Decl *decl_new(const char *name, Expr *value);
-
-/**
- * @brief Libera a memória alocada por um nó de declaração.
- * @param d Ponteiro para a declaração a ser liberada.
- */
 void decl_free(Decl *d);
 
-/**
- * @brief Inicializa o nó raiz do programa.
- * @return Ponteiro para a estrutura Program recém-alocada.
- */
+void cmd_list_init(CmdList *list);
+void cmd_list_add(CmdList *list, Cmd *cmd);
+void cmd_list_free(CmdList *list);
+
+Cmd *cmd_assign(const char *name, Expr *value);
+Cmd *cmd_if(Expr *condition, const CmdList *then_branch, const CmdList *else_branch);
+Cmd *cmd_while(Expr *condition, const CmdList *body);
+void cmd_free(Cmd *cmd);
+
 Program *program_new(void);
-
-/**
- * @brief Adiciona uma nova declaração à lista de declarações do programa.
- * @param p Ponteiro para o programa.
- * @param d Ponteiro para a declaração a ser adicionada.
- */
 void program_add_decl(Program *p, Decl *d);
-
-/**
- * @brief Define a expressão de resultado final do programa.
- * * O resultado do programa é o resultado da expressão final[cite: 50].
- * @param p Ponteiro para o programa.
- * @param result_expr Ponteiro para a expressão final.
- */
+void program_set_body(Program *p, const CmdList *body);
 void program_set_result(Program *p, Expr *result_expr);
-
-/**
- * @brief Libera toda a memória associada à AST do programa (declarações e expressão final).
- * @param p Ponteiro para o programa a ser liberado.
- */
 void program_free(Program *p);

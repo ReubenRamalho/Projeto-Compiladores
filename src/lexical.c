@@ -6,13 +6,6 @@
 #include "lexical.h"
 #include "utils.h"
 
-/**
- * @brief Duplica uma fatia (substring) de uma string de origem.
- * @param src String original.
- * @param start Índice de início da fatia.
- * @param end Índice de fim da fatia (exclusivo).
- * @return Ponteiro para a nova string alocada terminada em '\0'.
- */
 static char *slice_dup(const char *src, size_t start, size_t end) {
     size_t len = end - start;
     char *s = (char *)malloc(len + 1);
@@ -40,80 +33,122 @@ void token_free(Token *t) {
     t->lexeme = NULL;
 }
 
+static Token make_simple_token(TokenKind kind, size_t pos) {
+    Token t;
+    t.kind = kind;
+    t.int_value = 0;
+    t.lexeme = NULL;
+    t.pos = pos;
+    return t;
+}
+
 Token lexer_next(Lexer *lx) {
     Token t;
     char c;
 
     lexer_skip_ws(lx);
-
-    t.kind = TOK_INVALID;
-    t.int_value = 0;
-    t.op = 0;
-    t.lexeme = NULL;
-    t.pos = lx->i;
-
     c = lx->src[lx->i];
 
     if (c == '\0') {
-        t.kind = TOK_EOF;
-        return t;
+        return make_simple_token(TOK_EOF, lx->i);
     }
 
     if (c == '(') {
         lx->i++;
-        t.kind = TOK_LPAREN;
-        return t;
+        return make_simple_token(TOK_LPAREN, lx->i - 1);
     }
-
     if (c == ')') {
         lx->i++;
-        t.kind = TOK_RPAREN;
-        return t;
+        return make_simple_token(TOK_RPAREN, lx->i - 1);
     }
-
-    if (c == '+' || c == '-' || c == '*' || c == '/') {
+    if (c == '{') {
         lx->i++;
-        t.kind = TOK_OP;
-        t.op = c;
-        return t;
+        return make_simple_token(TOK_LBRACE, lx->i - 1);
     }
-
-    if (c == '=') {
+    if (c == '}') {
         lx->i++;
-        t.kind = TOK_EQUAL;
-        return t;
+        return make_simple_token(TOK_RBRACE, lx->i - 1);
     }
-
     if (c == ';') {
         lx->i++;
-        t.kind = TOK_SEMI;
-        return t;
+        return make_simple_token(TOK_SEMI, lx->i - 1);
+    }
+    if (c == '+') {
+        lx->i++;
+        return make_simple_token(TOK_OP_ADD, lx->i - 1);
+    }
+    if (c == '-') {
+        lx->i++;
+        return make_simple_token(TOK_OP_SUB, lx->i - 1);
+    }
+    if (c == '*') {
+        lx->i++;
+        return make_simple_token(TOK_OP_MUL, lx->i - 1);
+    }
+    if (c == '/') {
+        lx->i++;
+        return make_simple_token(TOK_OP_DIV, lx->i - 1);
+    }
+    if (c == '<') {
+        lx->i++;
+        return make_simple_token(TOK_OP_LT, lx->i - 1);
+    }
+    if (c == '>') {
+        lx->i++;
+        return make_simple_token(TOK_OP_GT, lx->i - 1);
+    }
+    if (c == '=') {
+        size_t pos = lx->i;
+        lx->i++;
+        if (lx->src[lx->i] == '=') {
+            lx->i++;
+            return make_simple_token(TOK_OP_EQ, pos);
+        }
+        return make_simple_token(TOK_EQUAL, pos);
     }
 
     if (isalpha((unsigned char)c)) {
         size_t start = lx->i;
+        char *name;
         lx->i++;
 
         while (isalnum((unsigned char)lx->src[lx->i])) {
             lx->i++;
         }
 
-        t.kind = TOK_IDENT;
-        t.lexeme = slice_dup(lx->src, start, lx->i);
+        name = slice_dup(lx->src, start, lx->i);
+        t = make_simple_token(TOK_IDENT, start);
+        t.lexeme = name;
+
+        if (strcmp(name, "if") == 0) {
+            token_free(&t);
+            return make_simple_token(TOK_IF, start);
+        }
+        if (strcmp(name, "else") == 0) {
+            token_free(&t);
+            return make_simple_token(TOK_ELSE, start);
+        }
+        if (strcmp(name, "while") == 0) {
+            token_free(&t);
+            return make_simple_token(TOK_WHILE, start);
+        }
+        if (strcmp(name, "return") == 0) {
+            token_free(&t);
+            return make_simple_token(TOK_RETURN, start);
+        }
+
         return t;
     }
 
     if (isdigit((unsigned char)c)) {
-        size_t start = lx->i;
         long v = 0;
+        size_t start = lx->i;
 
         while (isdigit((unsigned char)lx->src[lx->i])) {
             int d = lx->src[lx->i] - '0';
-
             if (v > (LONG_MAX - d) / 10) {
-                die("Inteiro muito grande perto de pos %zu", t.pos);
+                die("Inteiro muito grande perto de pos %zu", start);
             }
-
             v = v * 10 + d;
             lx->i++;
         }
@@ -122,11 +157,10 @@ Token lexer_next(Lexer *lx) {
             die("Erro léxico perto de pos %zu: identificador não pode começar com dígito", start);
         }
 
-        t.kind = TOK_INT;
+        t = make_simple_token(TOK_INT, start);
         t.int_value = v;
         return t;
     }
 
-    t.kind = TOK_INVALID;
-    return t;
+    return make_simple_token(TOK_INVALID, lx->i);
 }
