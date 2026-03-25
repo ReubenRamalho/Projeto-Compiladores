@@ -1,9 +1,9 @@
-# Compilador EV — Expressões com Variáveis
+# Compilador Cmd — Linguagem com Comandos, Condicionais e Repetição
 
-Este projeto implementa um compilador simples para a linguagem **EV (Expressões com Variáveis)**.  
-O compilador lê um arquivo-fonte contendo declarações de variáveis e uma expressão final, constrói uma AST, realiza verificação semântica e gera código assembly x86-64.
+Este projeto implementa um compilador simples para a linguagem **Cmd**, uma evolução da linguagem da atividade anterior.  
+O compilador lê um arquivo-fonte contendo declarações de variáveis, comandos e uma instrução de retorno, constrói uma AST, realiza verificação semântica e gera código assembly x86-64.
 
-O programa gerado calcula o valor da expressão final e imprime o resultado utilizando o runtime fornecido.
+O programa gerado calcula o valor retornado pelo comando `return` e imprime o resultado utilizando o runtime fornecido.
 
 ---
 
@@ -22,11 +22,11 @@ No diretório do projeto, espera-se uma organização semelhante a esta:
 
 ```text
 .
-├── ev_compiler.c
+├── cmd_compiler.c
 ├── runtime.s
 ├── README.md
 ├── testes/
-│   └── exemplo.ev
+│   └── exemplo.cmd
 └── src/
     ├── ast.c
     ├── ast.h
@@ -42,7 +42,7 @@ No diretório do projeto, espera-se uma organização semelhante a esta:
 
 ### Função de cada arquivo
 
-* `ev_compiler.c` — ponto de entrada do compilador e geração do `output.s`
+* `cmd_compiler.c` — ponto de entrada do compilador e geração do `output.s`
 * `src/ast.*` — estruturas da árvore sintática abstrata
 * `src/lexical.*` — analisador léxico
 * `src/parser.*` — analisador sintático
@@ -52,25 +52,43 @@ No diretório do projeto, espera-se uma organização semelhante a esta:
 
 ---
 
-## Gramática da linguagem EV
+## Gramática da linguagem Cmd
 
-A linguagem EV segue a gramática abaixo:
+A linguagem Cmd segue a estrutura geral abaixo:
 
 ```text
-<programa> ::= <decl>* <result>
-<decl>     ::= <ident> '=' <exp> ';'
-<result>   ::= '=' <exp>
-<exp>      ::= <exp_m> (('+' | '-') <exp_m>)*
-<exp_m>    ::= <prim> (('*' | '/') <prim>)*
-<prim>     ::= <num> | <ident> | '(' <exp> ')'
+<programa> ::= <decl>* '{' <comando>* 'return' <exp> ';' '}'
 ```
+
+Ela inclui:
+
+* declarações de variáveis no início do programa
+* bloco principal delimitado por `{` e `}`
+* comandos de atribuição
+* comandos condicionais `if ... else`
+* comandos de repetição `while`
+* comando final `return`
+
+Também há suporte a:
+
+* operadores aritméticos `+`, `-`, `*`, `/`
+* operadores relacionais `<`, `>` e `==`
+* parênteses para agrupamento
 
 ### Exemplo de programa válido
 
 ```text
-x = (7 + 4) * 12;
-y = x * 3 + 11;
-= (x * y) + (x * 11) + (y * 13)
+x = 10;
+y = 0;
+
+{
+    while (x > 0) {
+        y = y + x;
+        x = x - 1;
+    }
+
+    return y;
+}
 ```
 
 ---
@@ -83,12 +101,15 @@ O compilador realiza as seguintes etapas:
 
    * reconhece inteiros
    * reconhece identificadores
-   * reconhece operadores `+`, `-`, `*`, `/`
-   * reconhece `=`, `;`, `(` e `)`
+   * reconhece palavras-chave `if`, `else`, `while` e `return`
+   * reconhece operadores aritméticos `+`, `-`, `*`, `/`
+   * reconhece operadores relacionais `<`, `>` e `==`
+   * reconhece símbolos `=`, `;`, `(`, `)`, `{` e `}`
 
 2. **Análise sintática**
 
-   * constrói a AST do programa
+   * constrói a AST completa do programa
+   * reconhece declarações, comandos e retorno
    * respeita precedência entre operadores
    * respeita associatividade à esquerda
 
@@ -96,12 +117,16 @@ O compilador realiza as seguintes etapas:
 
    * verifica uso de variável antes da declaração
    * verifica redeclaração de variável
+   * verifica atribuição em variável não declarada
 
 4. **Geração de código**
 
    * cria variáveis na seção `.bss`
-   * gera código para declarações
-   * gera código para a expressão final
+   * gera código para expressões aritméticas e relacionais
+   * gera código para atribuições
+   * gera código para estruturas `if/else`
+   * gera código para estruturas `while`
+   * gera código para o `return`
    * imprime o resultado com `imprime_num`
 
 ---
@@ -111,23 +136,23 @@ O compilador realiza as seguintes etapas:
 Compile o compilador com:
 
 ```bash
-gcc -Wall -Wextra src/*.c ev_compiler.c -o ev_compiler
+gcc -Wall -Wextra -std=c11 cmd_compiler.c src/*.c -o cmd_compiler
 ```
 
 Isso irá gerar o executável:
 
 ```text
-ev_compiler
+cmd_compiler
 ```
 
 ---
 
 ## Como executar
 
-Execute o compilador passando como argumento um arquivo `.ev`:
+Execute o compilador passando como argumento um arquivo `.cmd`:
 
 ```bash
-./ev_compiler testes/exemplo.ev
+./cmd_compiler testes/exemplo.cmd
 ```
 
 Após essa execução, será gerado automaticamente o arquivo:
@@ -136,7 +161,7 @@ Após essa execução, será gerado automaticamente o arquivo:
 output.s
 ```
 
-Esse arquivo contém o código assembly x86-64 correspondente ao programa EV, já incluindo o `runtime.s`.
+Esse arquivo contém o código assembly x86-64 correspondente ao programa Cmd, já incluindo o `runtime.s`.
 
 ---
 
@@ -167,24 +192,32 @@ Depois de montar e linkar, execute:
 ./programa
 ```
 
-O valor da expressão final será impresso no terminal.
+O valor retornado pelo comando `return` será impresso no terminal.
 
 ---
 
 ## Exemplo completo
 
-### Arquivo `teste.ev`
+### Arquivo `teste.cmd`
 
 ```text
-x = 10;
-y = x + 5;
-= y * 2
+x = 5;
+y = 1;
+
+{
+    while (x > 1) {
+        y = y * x;
+        x = x - 1;
+    }
+
+    return y;
+}
 ```
 
 ### Comandos
 
 ```bash
-./ev_compiler teste.ev
+./cmd_compiler teste.cmd
 as -o output.o output.s
 ld -o programa output.o
 ./programa
@@ -193,8 +226,27 @@ ld -o programa output.o
 ### Saída esperada
 
 ```text
-30
+120
 ```
+
+---
+
+## Exemplo com comando condicional
+
+```text
+x = 10;
+y = 20;
+
+{
+    if (x < y) {
+        return x;
+    } else {
+        return y;
+    }
+}
+```
+
+Nesse caso, o programa imprime `10`.
 
 ---
 
@@ -203,29 +255,47 @@ ld -o programa output.o
 O programa abaixo é inválido:
 
 ```text
-x = y + 1;
-y = 10;
-= x + y
+x = 10;
+
+{
+    y = x + 1;
+    return y;
+}
 ```
 
-Nesse caso, o compilador deve acusar erro semântico, pois a variável `y` foi usada antes de ser declarada.
+Nesse caso, o compilador deve acusar erro semântico, pois a variável `y` recebeu atribuição sem ter sido declarada.
 
 Outro exemplo inválido:
 
 ```text
 x = 10;
 x = 20;
-= x
+
+{
+    return x;
+}
 ```
 
 Nesse caso, o compilador deve acusar redeclaração de variável.
+
+Outro exemplo inválido:
+
+```text
+x = y + 1;
+
+{
+    return x;
+}
+```
+
+Nesse caso, o compilador deve acusar uso de variável antes da declaração.
 
 ---
 
 ## Observações importantes
 
 * O resultado final de cada expressão é deixado no registrador `%rax`.
-* A estratégia de geração usa pilha (`push`/`pop`) para preservar a ordem correta das operações.
+* A estratégia de geração usa pilha (`push`/`pop`) para preservar a ordem correta das operações aritméticas.
 * As variáveis são alocadas na seção `.bss` com `.lcomm`.
 * A impressão é feita pela função `imprime_num`, definida em `runtime.s`.
 * Não deve ser feito o link manual de `runtime.o` quando se usa `.include "runtime.s"`.
@@ -234,10 +304,13 @@ Nesse caso, o compilador deve acusar redeclaração de variável.
 
   * inteiros positivos
   * identificadores
-  * operadores binários `+`, `-`, `*`, `/`
+  * operadores aritméticos `+`, `-`, `*`, `/`
+  * operadores relacionais `<`, `>` e `==`
   * parênteses para agrupamento
   * declarações com `;`
-  * uma expressão final iniciada por `=`
+  * bloco delimitado por `{` e `}`
+  * comandos `if`, `else`, `while`
+  * comando `return`
 
 ---
 
@@ -254,24 +327,24 @@ Nesse caso, o compilador deve acusar redeclaração de variável.
 Os arquivos-fonte desta atividade usam a extensão:
 
 ```text
-.ev
+.cmd
 ```
 
 Exemplo:
 
 ```text
-programa.ev
+programa.cmd
 ```
 
 ---
 
 ## Resumo
 
-Este compilador implementa uma pequena linguagem com variáveis, realizando:
+Este compilador implementa uma pequena linguagem imperativa com variáveis, comandos e controle de fluxo, realizando:
 
 * análise léxica
 * análise sintática
 * análise semântica
 * geração de assembly x86-64
 
-Ao final, ele produz um executável que avalia a expressão final do programa e imprime o resultado.
+Ao final, ele produz um executável que avalia o programa, executa seus comandos e imprime o valor retornado.

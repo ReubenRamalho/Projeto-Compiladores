@@ -1,5 +1,0 @@
-epochs = 50;
-batch = 32;
-steps = epochs * batch;
-total = steps + 1000;
-= total / 10

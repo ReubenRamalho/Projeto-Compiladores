@@ -1,4 +1,0 @@
-max = 100;
-chloe = max - 20;
-arcadia = (max * 2) / chloe;
-= arcadia + 5
