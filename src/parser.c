@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "parser.h"
 #include "utils.h"
@@ -17,6 +18,20 @@ static BinOpKind token_to_binop(TokenKind kind) {
             die("Erro interno: token inválido para operador binário");
             return OP_ADD;
     }
+}
+
+static char *xstrdup(const char *s) {
+    size_t n;
+    char *copy;
+
+    if (!s) return NULL;
+
+    n = strlen(s);
+    copy = (char *)malloc(n + 1);
+    if (!copy) die("Sem memória");
+
+    memcpy(copy, s, n + 1);
+    return copy;
 }
 
 void parser_init(Parser *p, const char *src) {
@@ -52,6 +67,18 @@ void expect(Parser *p, TokenKind kind, const char *what) {
     }
 }
 
+/**
+ * @brief Espia o próximo token sem consumi-lo da stream principal.
+ * Usado para diferenciar variáveis de chamadas de função.
+ */
+static TokenKind peek_kind(Parser *p) {
+    Lexer temp_lx = p->lx;
+    Token next = lexer_next(&temp_lx);
+    TokenKind kind = next.kind;
+    token_free(&next);
+    return kind;
+}
+
 Expr *parse_prim(Parser *p) {
     if (p->cur.kind == TOK_INT) {
         long v = p->cur.int_value;
@@ -60,9 +87,45 @@ Expr *parse_prim(Parser *p) {
     }
 
     if (p->cur.kind == TOK_IDENT) {
-        Expr *e = expr_var(p->cur.lexeme);
-        advance(p);
-        return e;
+        char *name = p->cur.lexeme;
+        p->cur.lexeme = NULL; // Rouba o ponteiro para evitar o free no advance
+        
+        // Verifica se é uma chamada de função olhando o próximo token 
+        if (peek_kind(p) == TOK_LPAREN) {
+            ExprList args;
+            Expr *call_expr;
+            expr_list_init(&args);
+            
+            advance(p); // consome o identificador
+            advance(p); // consome o '('
+            
+            // Lê os argumentos separados por vírgula
+            if (p->cur.kind != TOK_RPAREN) {
+                while (1) {
+                    expr_list_add(&args, parse_exp(p));
+                    if (p->cur.kind == TOK_COMMA) {
+                        advance(p);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            expect(p, TOK_RPAREN, "')' fechando os argumentos da função");
+            advance(p);
+            
+            call_expr = expr_call(name, &args);
+            free(name);
+
+            free(args.items);
+            return call_expr;
+        } else {
+            // É apenas uma variável
+            Expr *var_expr;
+            advance(p); // consome o identificador
+            var_expr = expr_var(name);
+            free(name);
+            return var_expr;
+        }
     }
 
     if (p->cur.kind == TOK_LPAREN) {
@@ -127,12 +190,15 @@ Expr *parse_exp(Parser *p) {
     return left;
 }
 
-Decl *parse_decl(Parser *p) {
+VarDecl *parse_vardecl(Parser *p) {
     char *name;
     Expr *value;
-    Decl *decl;
+    VarDecl *vd;
 
-    expect(p, TOK_IDENT, "identificador");
+    expect(p, TOK_VAR, "'var'");
+    advance(p);
+
+    expect(p, TOK_IDENT, "identificador da variável");
     name = p->cur.lexeme;
     p->cur.lexeme = NULL;
     advance(p);
@@ -145,9 +211,94 @@ Decl *parse_decl(Parser *p) {
     expect(p, TOK_SEMI, "';'");
     advance(p);
 
-    decl = decl_new(name, value);
+    vd = var_decl_new(name, value);
     free(name);
-    return decl;
+    return vd;
+}
+
+Decl *parse_fundecl(Parser *p) {
+    char *name;
+    StringList params;
+    VarDeclList locals;
+    CmdList body;
+    Expr *result_expr;
+    Decl *fun_decl;
+
+    expect(p, TOK_FUN, "'fun'");
+    advance(p);
+
+    expect(p, TOK_IDENT, "nome da função");
+    name = p->cur.lexeme;
+    p->cur.lexeme = NULL;
+    advance(p);
+
+    expect(p, TOK_LPAREN, "'('");
+    advance(p);
+
+    string_list_init(&params);
+    if (p->cur.kind != TOK_RPAREN) {
+        while (1) {
+            expect(p, TOK_IDENT, "parâmetro formal");
+            string_list_add(&params, xstrdup(p->cur.lexeme));
+            advance(p);
+            
+            if (p->cur.kind == TOK_COMMA) {
+                advance(p);
+            } else {
+                break;
+            }
+        }
+    }
+    expect(p, TOK_RPAREN, "')'");
+    advance(p);
+
+    expect(p, TOK_LBRACE, "'{' para abrir o corpo da função");
+    advance(p);
+
+    var_decl_list_init(&locals);
+    while (p->cur.kind == TOK_VAR) {
+        var_decl_list_add(&locals, parse_vardecl(p));
+    }
+
+    body = parse_cmd_block(p, TOK_RETURN);
+
+    expect(p, TOK_RETURN, "'return' no final da função");
+    advance(p);
+
+    result_expr = parse_exp(p);
+
+    expect(p, TOK_SEMI, "';' após a expressão de retorno");
+    advance(p);
+
+    expect(p, TOK_RBRACE, "'}' fechando o corpo da função");
+    advance(p);
+
+    fun_decl = decl_fun_new(name, &params, &locals, &body, result_expr);
+    
+    free(name);
+
+    free(params.items);
+    free(locals.items);
+    free(body.items);
+    
+    return fun_decl;
+}
+
+Decl *parse_decl(Parser *p) {
+    if (p->cur.kind == TOK_VAR) {
+        VarDecl *vd = parse_vardecl(p);
+        Decl *d = decl_var_new(vd->name, vd->value);
+
+        free(vd->name);
+        free(vd);
+
+        return d;
+    } else if (p->cur.kind == TOK_FUN) {
+        return parse_fundecl(p);
+    }
+    
+    parser_error_at(p, p->cur.pos, "Esperava declaração de 'var' ou 'fun'");
+    return NULL;
 }
 
 static Cmd *parse_assign_cmd(Parser *p) {
@@ -248,27 +399,30 @@ Cmd *parse_cmd(Parser *p) {
 Program *parse_program(const char *src) {
     Parser p;
     Program *program;
-    CmdList body;
+    CmdList main_body;
+    Expr *main_result;
 
     parser_init(&p, src);
     program = program_new();
 
-    while (p.cur.kind == TOK_IDENT) {
+    // Lê variáveis globais e funções até achar o main
+    while (p.cur.kind == TOK_VAR || p.cur.kind == TOK_FUN) {
         Decl *d = parse_decl(&p);
         program_add_decl(program, d);
     }
 
-    expect(&p, TOK_LBRACE, "'{' para iniciar o corpo do programa");
+    expect(&p, TOK_MAIN, "'main' para iniciar o bloco principal"); // 
     advance(&p);
 
-    body = parse_cmd_block(&p, TOK_RETURN);
-    program_set_body(program, &body);
-    free(body.items);
+    expect(&p, TOK_LBRACE, "'{' para iniciar o corpo do main");
+    advance(&p);
+
+    main_body = parse_cmd_block(&p, TOK_RETURN);
 
     expect(&p, TOK_RETURN, "'return'");
     advance(&p);
 
-    program_set_result(program, parse_exp(&p));
+    main_result = parse_exp(&p);
 
     expect(&p, TOK_SEMI, "';' após a expressão de retorno");
     advance(&p);
@@ -280,6 +434,9 @@ Program *parse_program(const char *src) {
         parser_error_at(&p, p.cur.pos, "Sobrou texto depois do fim do programa");
     }
 
+    program_set_main(program, &main_body, main_result);
+    
+    free(main_body.items);
     token_free(&p.cur);
     return program;
 }

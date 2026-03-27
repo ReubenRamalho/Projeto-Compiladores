@@ -1,9 +1,9 @@
-# Compilador Cmd — Linguagem com Comandos, Condicionais e Repetição
+# Compilador Fun — Linguagem com Funções, Escopo Local e Recursão
 
-Este projeto implementa um compilador simples para a linguagem **Cmd**, uma evolução da linguagem da atividade anterior.  
-O compilador lê um arquivo-fonte contendo declarações de variáveis, comandos e uma instrução de retorno, constrói uma AST, realiza verificação semântica e gera código assembly x86-64.
+Este projeto implementa um compilador para a linguagem **Fun** (Atividade 11), uma evolução da linguagem Cmd.  
+O compilador lê um arquivo-fonte contendo declarações globais de variáveis e funções, constrói uma Árvore Sintática Abstrata (AST), realiza verificação semântica (aridade, escopo, shadowing) e gera código assembly x86-64 utilizando convenções de chamada (calling conventions) baseadas na pilha.
 
-O programa gerado calcula o valor retornado pelo comando `return` e imprime o resultado utilizando o runtime fornecido.
+O programa gerado executa o bloco `main`, calcula o valor retornado e imprime o resultado utilizando o runtime fornecido.
 
 ---
 
@@ -20,331 +20,99 @@ O programa gerado calcula o valor retornado pelo comando `return` e imprime o re
 
 No diretório do projeto, espera-se uma organização semelhante a esta:
 
-```text
-.
-├── cmd_compiler.c
-├── runtime.s
-├── README.md
-├── testes/
-│   └── exemplo.cmd
-└── src/
-    ├── ast.c
-    ├── ast.h
-    ├── lexical.c
-    ├── lexical.h
-    ├── parser.c
-    ├── parser.h
-    ├── semantic.c
-    ├── semantic.h
-    ├── utils.c
-    └── utils.h
-````
+    .
+    ├── fun_compiler.c
+    ├── runtime.s
+    ├── README.md
+    ├── testes/
+    │   ├── pos_fatorial.fun
+    │   ├── pos_shadowing.fun
+    │   ├── pos_mult_args.fun
+    │   ├── neg_aridade.fun
+    │   ├── neg_var_as_fun.fun
+    │   └── neg_undeclared.fun
+    └── src/
+        ├── ast.c
+        ├── ast.h
+        ├── lexical.c
+        ├── lexical.h
+        ├── parser.c
+        ├── parser.h
+        ├── semantic.c
+        ├── semantic.h
+        ├── utils.c
+        └── utils.h
 
-### Função de cada arquivo
+### Função dos módulos principais
 
-* `cmd_compiler.c` — ponto de entrada do compilador e geração do `output.s`
-* `src/ast.*` — estruturas da árvore sintática abstrata
-* `src/lexical.*` — analisador léxico
-* `src/parser.*` — analisador sintático
-* `src/semantic.*` — análise semântica
-* `src/utils.*` — funções utilitárias
-* `runtime.s` — runtime fornecido pelo professor
+* `fun_compiler.c`: Ponto de entrada do compilador e responsável pela geração de código assembly gerindo o registro de ativação (stack frame) das funções.
+* `src/ast.*`: Definição e construção da Árvore Sintática Abstrata, agora com suporte a nós de funções e chamadas.
+* `src/lexical.*`: Analisador léxico adaptado para reconhecer novas palavras-chave e vírgulas.
+* `src/parser.*`: Analisador sintático com *lookahead* para distinguir chamadas de funções de referências a variáveis.
+* `src/semantic.*`: Análise semântica contendo tabelas de símbolos para escopo local e global.
 
 ---
 
-## Gramática da linguagem Cmd
+## A Linguagem Fun
 
-A linguagem Cmd segue a estrutura geral abaixo:
+A gramática da linguagem Fun adiciona a capacidade de declarar funções e um bloco principal à linguagem base, sendo especificada da seguinte forma:
 
-```text
-<programa> ::= <decl>* '{' <comando>* 'return' <exp> ';' '}'
-```
-
-Ela inclui:
-
-* declarações de variáveis no início do programa
-* bloco principal delimitado por `{` e `}`
-* comandos de atribuição
-* comandos condicionais `if ... else`
-* comandos de repetição `while`
-* comando final `return`
-
-Também há suporte a:
-
-* operadores aritméticos `+`, `-`, `*`, `/`
-* operadores relacionais `<`, `>` e `==`
-* parênteses para agrupamento
-
-### Exemplo de programa válido
-
-```text
-x = 10;
-y = 0;
-
-{
-    while (x > 0) {
-        y = y + x;
-        x = x - 1;
-    }
-
-    return y;
-}
-```
+    <programa> ::= <decl>* 'main' '{' <cmd>* 'return' <exp>';' '}'
+    <decl>     ::= <vardecl> | <fundecl>
+    <fundecl>  ::= 'fun' <ident> '(' <arglist>? ')' '{' <vardecl>* <cmd>* 'return' <exp> ';' '}'
+    <arglist>  ::= <ident> | <ident>','<arglist>
+    <vardecl>  ::= 'var' <ident> '=' <exp> ';'
+    <ident>    ::= <letra><letra_digito>*
+    <cmd>      ::= <if> | <while> | <atrib>
+    <if>       ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
+    <while>    ::= 'while' <exp> '{' <cmd>* '}'
+    <atrib>    ::= <ident> '=' <exp> ';'
+    <exp>      ::= <exp_a> (('<' | '>' | '==') <exp_a>)*
+    <exp_a>    ::= <exp_m> (('+' | '-') <exp_m>)*
+    <exp_m>    ::= <prim> (('*' | '/') <prim>)*
+    <prim>     ::= <num> | <ident> | '(' <exp> ')' | <fun>
+    <fun>      ::= <ident> '(' <params>? ')'
+    <params>   ::= <exp> | <exp> ',' <params>
+    <num>      ::= <digito><digito>*
 
 ---
 
 ## Funcionalidades implementadas
 
-O compilador realiza as seguintes etapas:
+O compilador reflete as seguintes características exigidas para funções:
 
-1. **Análise léxica**
-
-   * reconhece inteiros
-   * reconhece identificadores
-   * reconhece palavras-chave `if`, `else`, `while` e `return`
-   * reconhece operadores aritméticos `+`, `-`, `*`, `/`
-   * reconhece operadores relacionais `<`, `>` e `==`
-   * reconhece símbolos `=`, `;`, `(`, `)`, `{` e `}`
-
-2. **Análise sintática**
-
-   * constrói a AST completa do programa
-   * reconhece declarações, comandos e retorno
-   * respeita precedência entre operadores
-   * respeita associatividade à esquerda
-
-3. **Análise semântica**
-
-   * verifica uso de variável antes da declaração
-   * verifica redeclaração de variável
-   * verifica atribuição em variável não declarada
-
-4. **Geração de código**
-
-   * cria variáveis na seção `.bss`
-   * gera código para expressões aritméticas e relacionais
-   * gera código para atribuições
-   * gera código para estruturas `if/else`
-   * gera código para estruturas `while`
-   * gera código para o `return`
-   * imprime o resultado com `imprime_num`
+1. **Análise Léxica:** Reconhecimento do token de vírgula (`,`) para separar parâmetros e reconhecimento das novas palavras-chave `fun`, `var` e `main`.
+2. **Análise Sintática:** Identificação de chamadas de função checando se o token após um identificador é um abre-parênteses `(`.
+3. **Análise Semântica:** * Verificação de chamadas validando se a função existe e se o número de parâmetros reais corresponde aos parâmetros formais declarados.
+   * Suporte a funções recursivas inserindo a função no escopo antes da verificação de seu próprio corpo.
+   * Implementação de escopos locais usando a tabela de símbolos da função atual antes de buscar na tabela global.
+4. **Geração de Código (Calling Conventions):**
+   * Parâmetros são empilhados na ordem inversa antes da instrução `CALL`.
+   * O corpo da função aloca espaço na pilha subtraindo do registrador `%rsp` e usa o `%rbp` como ponteiro base (*frame pointer*).
+   * O valor de retorno da função é armazenado no registrador `%rax`.
 
 ---
 
-## Como compilar
+## Como compilar e executar
 
-Compile o compilador com:
+### 1. Compilar o compilador
+Utilize o `gcc` para compilar o código fonte em C:
 
-```bash
-gcc -Wall -Wextra -std=c11 cmd_compiler.c src/*.c -o cmd_compiler
-```
+    gcc -Wall -Wextra -std=c11 fun_compiler.c src/*.c -o fun_compiler
 
-Isso irá gerar o executável:
+### 2. Executar o compilador
+Passe o arquivo fonte da linguagem Fun (com extensão `.fun`) como argumento:
 
-```text
-cmd_compiler
-```
+    ./fun_compiler testes/pos_fatorial.fun
 
----
+Isso irá gerar um arquivo `output.s` contendo as instruções em assembly. O código gerado posiciona as funções na seção TEXT e o programa principal no rótulo `_start`.
 
-## Como executar
+### 3. Montar e Linkar o Assembly
+Como o arquivo `output.s` inclui as rotinas básicas com a diretiva `.include "runtime.s"`, basta montar e linkar com o GNU Assembler e Linker:
 
-Execute o compilador passando como argumento um arquivo `.cmd`:
+    as -o output.o output.s
+    ld -o programa output.o
+    ./programa
 
-```bash
-./cmd_compiler testes/exemplo.cmd
-```
-
-Após essa execução, será gerado automaticamente o arquivo:
-
-```text
-output.s
-```
-
-Esse arquivo contém o código assembly x86-64 correspondente ao programa Cmd, já incluindo o `runtime.s`.
 
 ---
-
-## Como montar e linkar o assembly gerado
-
-Como o arquivo `output.s` já contém a diretiva:
-
-```asm
-.include "runtime.s"
-```
-
-não é necessário montar o runtime separadamente.
-
-Basta executar:
-
-```bash
-as -o output.o output.s
-ld -o programa output.o
-```
-
----
-
-## Como executar o programa final
-
-Depois de montar e linkar, execute:
-
-```bash
-./programa
-```
-
-O valor retornado pelo comando `return` será impresso no terminal.
-
----
-
-## Exemplo completo
-
-### Arquivo `teste.cmd`
-
-```text
-x = 5;
-y = 1;
-
-{
-    while (x > 1) {
-        y = y * x;
-        x = x - 1;
-    }
-
-    return y;
-}
-```
-
-### Comandos
-
-```bash
-./cmd_compiler teste.cmd
-as -o output.o output.s
-ld -o programa output.o
-./programa
-```
-
-### Saída esperada
-
-```text
-120
-```
-
----
-
-## Exemplo com comando condicional
-
-```text
-x = 10;
-y = 20;
-
-{
-    if (x < y) {
-        return x;
-    } else {
-        return y;
-    }
-}
-```
-
-Nesse caso, o programa imprime `10`.
-
----
-
-## Exemplo de erro semântico
-
-O programa abaixo é inválido:
-
-```text
-x = 10;
-
-{
-    y = x + 1;
-    return y;
-}
-```
-
-Nesse caso, o compilador deve acusar erro semântico, pois a variável `y` recebeu atribuição sem ter sido declarada.
-
-Outro exemplo inválido:
-
-```text
-x = 10;
-x = 20;
-
-{
-    return x;
-}
-```
-
-Nesse caso, o compilador deve acusar redeclaração de variável.
-
-Outro exemplo inválido:
-
-```text
-x = y + 1;
-
-{
-    return x;
-}
-```
-
-Nesse caso, o compilador deve acusar uso de variável antes da declaração.
-
----
-
-## Observações importantes
-
-* O resultado final de cada expressão é deixado no registrador `%rax`.
-* A estratégia de geração usa pilha (`push`/`pop`) para preservar a ordem correta das operações aritméticas.
-* As variáveis são alocadas na seção `.bss` com `.lcomm`.
-* A impressão é feita pela função `imprime_num`, definida em `runtime.s`.
-* Não deve ser feito o link manual de `runtime.o` quando se usa `.include "runtime.s"`.
-* Os identificadores devem começar com letra.
-* A linguagem aceita:
-
-  * inteiros positivos
-  * identificadores
-  * operadores aritméticos `+`, `-`, `*`, `/`
-  * operadores relacionais `<`, `>` e `==`
-  * parênteses para agrupamento
-  * declarações com `;`
-  * bloco delimitado por `{` e `}`
-  * comandos `if`, `else`, `while`
-  * comando `return`
-
----
-
-## Ambiente de desenvolvimento
-
-* Sistema operacional: Linux (x86-64)
-* Compilador C: `gcc`
-* Montador e linker: `as` e `ld` (GNU binutils)
-
----
-
-## Extensão dos arquivos de entrada
-
-Os arquivos-fonte desta atividade usam a extensão:
-
-```text
-.cmd
-```
-
-Exemplo:
-
-```text
-programa.cmd
-```
-
----
-
-## Resumo
-
-Este compilador implementa uma pequena linguagem imperativa com variáveis, comandos e controle de fluxo, realizando:
-
-* análise léxica
-* análise sintática
-* análise semântica
-* geração de assembly x86-64
-
-Ao final, ele produz um executável que avalia o programa, executa seus comandos e imprime o valor retornado.
