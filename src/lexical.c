@@ -73,6 +73,10 @@ Token lexer_next(Lexer *lx) {
         lx->i++;
         return make_simple_token(TOK_SEMI, lx->i - 1);
     }
+    if (c == ',') {
+        lx->i++;
+        return make_simple_token(TOK_COMMA, lx->i - 1);
+    }
     if (c == '+') {
         lx->i++;
         return make_simple_token(TOK_OP_ADD, lx->i - 1);
@@ -112,9 +116,10 @@ Token lexer_next(Lexer *lx) {
         char *name;
         lx->i++;
 
-        while (isalnum((unsigned char)lx->src[lx->i])) {
+        while (isalnum((unsigned char)lx->src[lx->i]) || lx->src[lx->i] == '_') {
             lx->i++;
         }
+
 
         name = slice_dup(lx->src, start, lx->i);
         t = make_simple_token(TOK_IDENT, start);
@@ -135,6 +140,18 @@ Token lexer_next(Lexer *lx) {
         if (strcmp(name, "return") == 0) {
             token_free(&t);
             return make_simple_token(TOK_RETURN, start);
+        }
+        if (strcmp(name, "fun") == 0) {
+            token_free(&t);
+            return make_simple_token(TOK_FUN, start);
+        }
+        if (strcmp(name, "var") == 0) {
+            token_free(&t);
+            return make_simple_token(TOK_VAR, start);
+        }
+        if (strcmp(name, "main") == 0) {
+            token_free(&t);
+            return make_simple_token(TOK_MAIN, start);
         }
 
         return t;

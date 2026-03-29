@@ -3,11 +3,39 @@
 #include "ast.h"
 
 /**
- * @brief Realiza a análise semântica do programa.
+ * @brief Categorias de símbolos na tabela.
+ */
+typedef enum {
+    SYM_GLOBAL_VAR,
+    SYM_LOCAL_VAR,
+    SYM_FUN
+} SymKind;
+
+/**
+ * @brief Estrutura de um símbolo armazenado na tabela.
+ */
+typedef struct {
+    char *name;
+    SymKind kind;
+    size_t arity; // Utilizado apenas se kind == SYM_FUN (número de parâmetros)
+} Symbol;
+
+/**
+ * @brief Tabela de símbolos dinâmica. Agora armazena objetos do tipo Symbol.
+ */
+typedef struct {
+    Symbol *items;
+    size_t count;
+    size_t capacity;
+} SymbolTable;
+
+/**
+ * @brief Realiza a análise semântica do programa Fun.
  *
- * Verifica principalmente:
- * - uso de variável antes da declaração;
- * - redeclaração de variável;
- * - atribuição a variável não declarada.
+ * Verifica:
+ * - uso de variável antes da declaração (respeitando escopo local e global);
+ * - redeclaração de variáveis no mesmo escopo;
+ * - chamadas a funções não declaradas ou com número incorreto de argumentos;
+ * - se uma variável está tentando ser chamada como função ou vice-versa.
  */
 void semantic_check_program(const Program *program);

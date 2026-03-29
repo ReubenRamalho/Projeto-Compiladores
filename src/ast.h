@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 /**
- * @brief Operadores binários suportados pela linguagem Cmd.
+ * @brief Operadores binários suportados.
  */
 typedef enum {
     OP_ADD,
@@ -16,40 +16,75 @@ typedef enum {
 } BinOpKind;
 
 /**
- * @brief Tipos de expressão da AST.
+ * @brief Tipos de expressão da AST. Adicionado EXPR_CALL para chamadas de função.
  */
 typedef enum {
     EXPR_INT,
     EXPR_VAR,
-    EXPR_BINOP
+    EXPR_BINOP,
+    EXPR_CALL
 } ExprKind;
 
+struct Expr;
+typedef struct Expr Expr;
+
 /**
- * @brief Nó de expressão da AST.
+ * @brief Lista dinâmica de expressões (usada para os argumentos reais de uma chamada).
  */
-typedef struct Expr {
+typedef struct {
+    Expr **items;
+    size_t count;
+    size_t capacity;
+} ExprList;
+
+/**
+ * @brief Nó de expressão da AST. Agora contém a união 'call' para chamadas de função.
+ */
+struct Expr {
     ExprKind kind;
     union {
         long int_value;
         char *var_name;
         struct {
             BinOpKind op;
-            struct Expr *left;
-            struct Expr *right;
+            Expr *left;
+            Expr *right;
         } binop;
+        struct {
+            char *fun_name;
+            ExprList args;
+        } call;
     } as;
-} Expr;
+};
 
 /**
- * @brief Declaração de variável feita antes do corpo do programa.
+ * @brief Declaração de variável (antigo Decl, renomeado para diferenciar de funções).
  */
-typedef struct {
+typedef struct VarDecl {
     char *name;
     Expr *value;
-} Decl;
+} VarDecl;
 
 /**
- * @brief Tipos de comandos da linguagem Cmd.
+ * @brief Lista dinâmica de declarações de variáveis (usada para variáveis locais de uma função).
+ */
+typedef struct {
+    VarDecl **items;
+    size_t count;
+    size_t capacity;
+} VarDeclList;
+
+/**
+ * @brief Lista dinâmica de strings (usada para os nomes dos parâmetros formais de uma função).
+ */
+typedef struct {
+    char **items;
+    size_t count;
+    size_t capacity;
+} StringList;
+
+/**
+ * @brief Tipos de comandos da linguagem.
  */
 typedef enum {
     CMD_ASSIGN,
@@ -92,40 +127,188 @@ struct Cmd {
 };
 
 /**
- * @brief Programa completo da linguagem Cmd.
- *
- * Um programa possui:
- * - zero ou mais declarações iniciais;
- * - um bloco com zero ou mais comandos;
- * - uma expressão final introduzida por return.
+ * @brief Tipos de declarações que podem compor um programa no escopo global.
+ */
+typedef enum {
+    DECL_VAR,
+    DECL_FUN
+} DeclKind;
+
+/**
+ * @brief Nó genérico para declarações do topo do programa (variável ou função).
+ */
+typedef struct Decl {
+    DeclKind kind;
+    union {
+        VarDecl var_decl;
+        struct {
+            char *name;
+            StringList params;
+            VarDeclList locals;
+            CmdList body;
+            Expr *result_expr;
+        } fun_decl;
+    } as;
+} Decl;
+
+/**
+ * @brief Programa completo. Contém lista mista de declarações e o bloco principal (main).
  */
 typedef struct {
     Decl **decls;
     size_t decl_count;
     size_t decl_capacity;
-    CmdList body;
-    Expr *result_expr;
+    CmdList main_body;
+    Expr *main_result;
 } Program;
 
+
+/**
+ * @brief Inicializa uma lista de expressões.
+ */
+void expr_list_init(ExprList *list);
+
+/**
+ * @brief Adiciona uma expressão à lista.
+ */
+void expr_list_add(ExprList *list, Expr *expr);
+
+/**
+ * @brief Libera a memória de uma lista de expressões e de seus itens.
+ */
+void expr_list_free(ExprList *list);
+
+/**
+ * @brief Cria um nó de expressão inteira literal.
+ */
 Expr *expr_int(long v);
+
+/**
+ * @brief Cria um nó de expressão de variável.
+ */
 Expr *expr_var(const char *name);
+
+/**
+ * @brief Cria um nó de expressão de operação binária.
+ */
 Expr *expr_binop(BinOpKind op, Expr *left, Expr *right);
+
+/**
+ * @brief Cria um nó de expressão de chamada de função.
+ */
+Expr *expr_call(const char *fun_name, const ExprList *args);
+
+/**
+ * @brief Libera a memória de uma expressão (agora suporta EXPR_CALL).
+ */
 void expr_free(Expr *e);
 
-Decl *decl_new(const char *name, Expr *value);
-void decl_free(Decl *d);
+/**
+ * @brief Inicializa uma lista de strings.
+ */
+void string_list_init(StringList *list);
 
+/**
+ * @brief Adiciona uma string à lista.
+ */
+void string_list_add(StringList *list, char *str);
+
+/**
+ * @brief Libera a memória de uma lista de strings e de seus itens.
+ */
+void string_list_free(StringList *list);
+
+/**
+ * @brief Cria uma nova declaração de variável (antigo decl_new).
+ */
+VarDecl *var_decl_new(const char *name, Expr *value);
+
+/**
+ * @brief Libera a memória de uma declaração de variável (antigo decl_free).
+ */
+void var_decl_free(VarDecl *vd);
+
+/**
+ * @brief Inicializa uma lista de declarações de variáveis.
+ */
+void var_decl_list_init(VarDeclList *list);
+
+/**
+ * @brief Adiciona uma declaração de variável à lista.
+ */
+void var_decl_list_add(VarDeclList *list, VarDecl *vd);
+
+/**
+ * @brief Libera a memória de uma lista de declarações de variáveis e seus itens.
+ */
+void var_decl_list_free(VarDeclList *list);
+
+/**
+ * @brief Inicializa uma lista de comandos.
+ */
 void cmd_list_init(CmdList *list);
+
+/**
+ * @brief Adiciona um comando à lista.
+ */
 void cmd_list_add(CmdList *list, Cmd *cmd);
+
+/**
+ * @brief Libera a memória de uma lista de comandos e de seus itens.
+ */
 void cmd_list_free(CmdList *list);
 
+/**
+ * @brief Cria um comando de atribuição.
+ */
 Cmd *cmd_assign(const char *name, Expr *value);
+
+/**
+ * @brief Cria um comando condicional if/else.
+ */
 Cmd *cmd_if(Expr *condition, const CmdList *then_branch, const CmdList *else_branch);
+
+/**
+ * @brief Cria um comando de repetição while.
+ */
 Cmd *cmd_while(Expr *condition, const CmdList *body);
+
+/**
+ * @brief Libera a memória de um comando.
+ */
 void cmd_free(Cmd *cmd);
 
+/**
+ * @brief Cria um nó genérico de declaração contendo uma variável.
+ */
+Decl *decl_var_new(const char *name, Expr *value);
+
+/**
+ * @brief Cria um nó genérico de declaração contendo uma função.
+ */
+Decl *decl_fun_new(const char *name, const StringList *params, const VarDeclList *locals, const CmdList *body, Expr *result_expr);
+
+/**
+ * @brief Libera a memória de um nó de declaração genérico (variável ou função).
+ */
+void decl_free(Decl *d);
+
+/**
+ * @brief Cria uma nova estrutura de programa.
+ */
 Program *program_new(void);
+
+/**
+ * @brief Adiciona uma declaração genérica (variável ou função) ao programa.
+ */
 void program_add_decl(Program *p, Decl *d);
-void program_set_body(Program *p, const CmdList *body);
-void program_set_result(Program *p, Expr *result_expr);
+
+/**
+ * @brief Define o corpo e o retorno do bloco principal (main) do programa.
+ */
+void program_set_main(Program *p, const CmdList *body, Expr *result_expr);
+
+/**
+ * @brief Libera a memória de todo o programa.
+ */
 void program_free(Program *p);

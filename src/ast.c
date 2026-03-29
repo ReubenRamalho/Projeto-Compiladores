@@ -18,6 +18,48 @@ static char *xstrdup(const char *s) {
     return copy;
 }
 
+void expr_list_init(ExprList *list) {
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+void expr_list_add(ExprList *list, Expr *expr) {
+    Expr **new_items;
+    size_t new_cap;
+
+    if (list->count == list->capacity) {
+        new_cap = (list->capacity == 0) ? 4 : list->capacity * 2;
+        new_items = (Expr **)realloc(list->items, new_cap * sizeof(Expr *));
+        if (!new_items) die("Sem memória");
+        list->items = new_items;
+        list->capacity = new_cap;
+    }
+    list->items[list->count++] = expr;
+}
+
+static ExprList expr_list_clone(const ExprList *src) {
+    ExprList list;
+    size_t i;
+    expr_list_init(&list);
+    for (i = 0; i < src->count; i++) {
+        expr_list_add(&list, src->items[i]);
+    }
+    return list;
+}
+
+void expr_list_free(ExprList *list) {
+    size_t i;
+    if (!list) return;
+    for (i = 0; i < list->count; i++) {
+        expr_free(list->items[i]);
+    }
+    free(list->items);
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
 Expr *expr_int(long v) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -47,6 +89,16 @@ Expr *expr_binop(BinOpKind op, Expr *left, Expr *right) {
     return e;
 }
 
+Expr *expr_call(const char *fun_name, const ExprList *args) {
+    Expr *e = (Expr *)calloc(1, sizeof(Expr));
+    if (!e) die("Sem memória");
+
+    e->kind = EXPR_CALL;
+    e->as.call.fun_name = xstrdup(fun_name);
+    e->as.call.args = expr_list_clone(args);
+    return e;
+}
+
 void expr_free(Expr *e) {
     if (!e) return;
 
@@ -58,27 +110,114 @@ void expr_free(Expr *e) {
             expr_free(e->as.binop.left);
             expr_free(e->as.binop.right);
             break;
+        case EXPR_CALL:
+            free(e->as.call.fun_name);
+            expr_list_free(&e->as.call.args);
+            break;
         case EXPR_INT:
             break;
     }
-
     free(e);
 }
 
-Decl *decl_new(const char *name, Expr *value) {
-    Decl *d = (Decl *)calloc(1, sizeof(Decl));
-    if (!d) die("Sem memória");
-
-    d->name = xstrdup(name);
-    d->value = value;
-    return d;
+void string_list_init(StringList *list) {
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
 }
 
-void decl_free(Decl *d) {
-    if (!d) return;
-    free(d->name);
-    expr_free(d->value);
-    free(d);
+void string_list_add(StringList *list, char *str) {
+    char **new_items;
+    size_t new_cap;
+
+    if (list->count == list->capacity) {
+        new_cap = (list->capacity == 0) ? 4 : list->capacity * 2;
+        new_items = (char **)realloc(list->items, new_cap * sizeof(char *));
+        if (!new_items) die("Sem memória");
+        list->items = new_items;
+        list->capacity = new_cap;
+    }
+    list->items[list->count++] = str;
+}
+
+static StringList string_list_clone(const StringList *src) {
+    StringList list;
+    size_t i;
+    string_list_init(&list);
+    for (i = 0; i < src->count; i++) {
+        string_list_add(&list, src->items[i]);
+    }
+    return list;
+}
+
+void string_list_free(StringList *list) {
+    size_t i;
+    if (!list) return;
+    for (i = 0; i < list->count; i++) {
+        free(list->items[i]);
+    }
+    free(list->items);
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+VarDecl *var_decl_new(const char *name, Expr *value) {
+    VarDecl *vd = (VarDecl *)calloc(1, sizeof(VarDecl));
+    if (!vd) die("Sem memória");
+
+    vd->name = xstrdup(name);
+    vd->value = value;
+    return vd;
+}
+
+void var_decl_free(VarDecl *vd) {
+    if (!vd) return;
+    free(vd->name);
+    expr_free(vd->value);
+    free(vd);
+}
+
+void var_decl_list_init(VarDeclList *list) {
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+void var_decl_list_add(VarDeclList *list, VarDecl *vd) {
+    VarDecl **new_items;
+    size_t new_cap;
+
+    if (list->count == list->capacity) {
+        new_cap = (list->capacity == 0) ? 4 : list->capacity * 2;
+        new_items = (VarDecl **)realloc(list->items, new_cap * sizeof(VarDecl *));
+        if (!new_items) die("Sem memória");
+        list->items = new_items;
+        list->capacity = new_cap;
+    }
+    list->items[list->count++] = vd;
+}
+
+static VarDeclList var_decl_list_clone(const VarDeclList *src) {
+    VarDeclList list;
+    size_t i;
+    var_decl_list_init(&list);
+    for (i = 0; i < src->count; i++) {
+        var_decl_list_add(&list, src->items[i]);
+    }
+    return list;
+}
+
+void var_decl_list_free(VarDeclList *list) {
+    size_t i;
+    if (!list) return;
+    for (i = 0; i < list->count; i++) {
+        var_decl_free(list->items[i]);
+    }
+    free(list->items);
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
 }
 
 void cmd_list_init(CmdList *list) {
@@ -101,7 +240,6 @@ void cmd_list_add(CmdList *list, Cmd *cmd) {
         list->items = new_items;
         list->capacity = new_capacity;
     }
-
     list->items[list->count++] = cmd;
 }
 
@@ -118,13 +256,10 @@ static CmdList cmd_list_clone(const CmdList *src) {
 
 void cmd_list_free(CmdList *list) {
     size_t i;
-
     if (!list) return;
-
     for (i = 0; i < list->count; i++) {
         cmd_free(list->items[i]);
     }
-
     free(list->items);
     list->items = NULL;
     list->count = 0;
@@ -180,14 +315,52 @@ void cmd_free(Cmd *cmd) {
             cmd_list_free(&cmd->as.while_cmd.body);
             break;
     }
-
     free(cmd);
+}
+
+Decl *decl_var_new(const char *name, Expr *value) {
+    Decl *d = (Decl *)calloc(1, sizeof(Decl));
+    if (!d) die("Sem memória");
+
+    d->kind = DECL_VAR;
+    d->as.var_decl.name = xstrdup(name);
+    d->as.var_decl.value = value;
+    return d;
+}
+
+Decl *decl_fun_new(const char *name, const StringList *params, const VarDeclList *locals, const CmdList *body, Expr *result_expr) {
+    Decl *d = (Decl *)calloc(1, sizeof(Decl));
+    if (!d) die("Sem memória");
+
+    d->kind = DECL_FUN;
+    d->as.fun_decl.name = xstrdup(name);
+    d->as.fun_decl.params = string_list_clone(params);
+    d->as.fun_decl.locals = var_decl_list_clone(locals);
+    d->as.fun_decl.body = cmd_list_clone(body);
+    d->as.fun_decl.result_expr = result_expr;
+    return d;
+}
+
+void decl_free(Decl *d) {
+    if (!d) return;
+    
+    if (d->kind == DECL_VAR) {
+        free(d->as.var_decl.name);
+        expr_free(d->as.var_decl.value);
+    } else if (d->kind == DECL_FUN) {
+        free(d->as.fun_decl.name);
+        string_list_free(&d->as.fun_decl.params);
+        var_decl_list_free(&d->as.fun_decl.locals);
+        cmd_list_free(&d->as.fun_decl.body);
+        expr_free(d->as.fun_decl.result_expr);
+    }
+    free(d);
 }
 
 Program *program_new(void) {
     Program *p = (Program *)calloc(1, sizeof(Program));
     if (!p) die("Sem memória");
-    cmd_list_init(&p->body);
+    cmd_list_init(&p->main_body);
     return p;
 }
 
@@ -205,18 +378,13 @@ void program_add_decl(Program *p, Decl *d) {
         p->decls = new_data;
         p->decl_capacity = new_capacity;
     }
-
     p->decls[p->decl_count++] = d;
 }
 
-void program_set_body(Program *p, const CmdList *body) {
+void program_set_main(Program *p, const CmdList *body, Expr *result_expr) {
     if (!p || !body) return;
-    p->body = cmd_list_clone(body);
-}
-
-void program_set_result(Program *p, Expr *result_expr) {
-    if (!p) return;
-    p->result_expr = result_expr;
+    p->main_body = cmd_list_clone(body);
+    p->main_result = result_expr;
 }
 
 void program_free(Program *p) {
@@ -227,9 +395,8 @@ void program_free(Program *p) {
     for (i = 0; i < p->decl_count; i++) {
         decl_free(p->decls[i]);
     }
-
     free(p->decls);
-    cmd_list_free(&p->body);
-    expr_free(p->result_expr);
+    cmd_list_free(&p->main_body);
+    expr_free(p->main_result);
     free(p);
 }
