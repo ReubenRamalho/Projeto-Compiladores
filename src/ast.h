@@ -25,7 +25,8 @@ typedef enum {
     EXPR_INT,
     EXPR_VAR,
     EXPR_BINOP,
-    EXPR_CALL
+    EXPR_CALL,
+    EXPR_ARRAY_ACCESS
 } ExprKind;
 
 struct Expr;
@@ -57,6 +58,10 @@ struct Expr {
             char *fun_name;
             ExprList args;
         } call;
+        struct {                  
+            char *array_name;
+            Expr *index;
+        } array_access;
     } as;
 };
 
@@ -66,6 +71,8 @@ struct Expr {
 typedef struct VarDecl {
     char *name;
     Expr *value;
+    int is_array;     
+    size_t array_size;
 } VarDecl;
 
 /**
@@ -92,7 +99,8 @@ typedef struct {
 typedef enum {
     CMD_ASSIGN,
     CMD_IF,
-    CMD_WHILE
+    CMD_WHILE,
+    CMD_ARRAY_ASSIGN
 } CmdKind;
 
 struct Cmd;
@@ -126,6 +134,11 @@ struct Cmd {
             Expr *condition;
             CmdList body;
         } while_cmd;
+        struct {            
+            char *name;
+            Expr *index;
+            Expr *value;
+        } array_assign;
     } as;
 };
 
@@ -201,8 +214,10 @@ Expr *expr_binop(BinOpKind op, Expr *left, Expr *right);
  */
 Expr *expr_call(const char *fun_name, const ExprList *args);
 
+Expr *expr_array_access(const char *name, Expr *index); // NOVO
+
 /**
- * @brief Libera a memória de uma expressão (agora suporta EXPR_CALL).
+ * @brief Libera a memória de uma expressão
  */
 void expr_free(Expr *e);
 
@@ -225,6 +240,8 @@ void string_list_free(StringList *list);
  * @brief Cria uma nova declaração de variável (antigo decl_new).
  */
 VarDecl *var_decl_new(const char *name, Expr *value);
+
+VarDecl *var_decl_array_new(const char *name, size_t size);
 
 /**
  * @brief Libera a memória de uma declaração de variável (antigo decl_free).
@@ -265,6 +282,8 @@ void cmd_list_free(CmdList *list);
  * @brief Cria um comando de atribuição.
  */
 Cmd *cmd_assign(const char *name, Expr *value);
+
+Cmd *cmd_array_assign(const char *name, Expr *index, Expr *value);
 
 /**
  * @brief Cria um comando condicional if/else.

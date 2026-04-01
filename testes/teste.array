@@ -1,0 +1,16 @@
+var result = 0;
+
+fun calcula() {
+    var local_arr[2];
+    var fator = 2;
+    
+    local_arr[0] = 5;
+    local_arr[1] = 7;
+    
+    return (local_arr[0] * local_arr[1]) * fator;
+}
+
+main {
+    result = calcula();
+    return result;
+}

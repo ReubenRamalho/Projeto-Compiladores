@@ -1,0 +1,11 @@
+var a[5];
+var i = 0;
+
+main {
+    while (i < 5) {
+        a[i] = i * 2;
+        i = i + 1;
+    }
+    
+    return a[4];
+}

@@ -17,17 +17,19 @@ typedef enum {
 typedef struct {
     char *name;
     SymKind kind;
-    size_t arity; // Utilizado apenas se kind == SYM_FUN (número de parâmetros)
+    size_t arity; 
+    int is_array;
 } Symbol;
 
 /**
- * @brief Tabela de símbolos dinâmica. Agora armazena objetos do tipo Symbol.
+ * @brief Tabela de símbolos dinâmica.
  */
 typedef struct {
     Symbol *items;
     size_t count;
     size_t capacity;
 } SymbolTable;
+
 
 /**
  * @brief Realiza a análise semântica do programa Fun.

@@ -1,0 +1,6 @@
+var arr[2];
+
+main {
+    arr = 5;
+    return 0;
+}

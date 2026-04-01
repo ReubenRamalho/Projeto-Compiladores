@@ -69,6 +69,14 @@ Token lexer_next(Lexer *lx) {
         lx->i++;
         return make_simple_token(TOK_RBRACE, lx->i - 1);
     }
+    if (c == '[') {
+        lx->i++;
+        return make_simple_token(TOK_LBRACKET, lx->i - 1);
+    }
+    if (c == ']') {
+        lx->i++;
+        return make_simple_token(TOK_RBRACKET, lx->i - 1);
+    }
     if (c == ';') {
         lx->i++;
         return make_simple_token(TOK_SEMI, lx->i - 1);

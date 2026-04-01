@@ -99,6 +99,17 @@ Expr *expr_call(const char *fun_name, const ExprList *args) {
     return e;
 }
 
+
+Expr *expr_array_access(const char *name, Expr *index) {
+    Expr *e = (Expr *)calloc(1, sizeof(Expr));
+    if (!e) die("Sem memória");
+
+    e->kind = EXPR_ARRAY_ACCESS;
+    e->as.array_access.array_name = xstrdup(name);
+    e->as.array_access.index = index;
+    return e;
+}
+
 void expr_free(Expr *e) {
     if (!e) return;
 
@@ -113,6 +124,10 @@ void expr_free(Expr *e) {
         case EXPR_CALL:
             free(e->as.call.fun_name);
             expr_list_free(&e->as.call.args);
+            break;
+        case EXPR_ARRAY_ACCESS: 
+            free(e->as.array_access.array_name);
+            expr_free(e->as.array_access.index);
             break;
         case EXPR_INT:
             break;
@@ -168,13 +183,27 @@ VarDecl *var_decl_new(const char *name, Expr *value) {
 
     vd->name = xstrdup(name);
     vd->value = value;
+    vd->is_array = 0;  // ALTERADO
+    vd->array_size = 0;// ALTERADO
+    return vd;
+}
+
+
+VarDecl *var_decl_array_new(const char *name, size_t size) {
+    VarDecl *vd = (VarDecl *)calloc(1, sizeof(VarDecl));
+    if (!vd) die("Sem memória");
+
+    vd->name = xstrdup(name);
+    vd->value = NULL;
+    vd->is_array = 1;
+    vd->array_size = size;
     return vd;
 }
 
 void var_decl_free(VarDecl *vd) {
     if (!vd) return;
     free(vd->name);
-    expr_free(vd->value);
+    if (vd->value) expr_free(vd->value); // ALTERADO (pode ser NULL em array)
     free(vd);
 }
 
@@ -203,6 +232,7 @@ static VarDeclList var_decl_list_clone(const VarDeclList *src) {
     size_t i;
     var_decl_list_init(&list);
     for (i = 0; i < src->count; i++) {
+        // CUIDADO: Este clone precisa replicar as flags is_array corretamente se for chamado (aqui só estamos passando ponteiros)
         var_decl_list_add(&list, src->items[i]);
     }
     return list;
@@ -297,6 +327,18 @@ Cmd *cmd_while(Expr *condition, const CmdList *body) {
     return cmd;
 }
 
+
+Cmd *cmd_array_assign(const char *name, Expr *index, Expr *value) {
+    Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
+    if (!cmd) die("Sem memória");
+
+    cmd->kind = CMD_ARRAY_ASSIGN;
+    cmd->as.array_assign.name = xstrdup(name);
+    cmd->as.array_assign.index = index;
+    cmd->as.array_assign.value = value;
+    return cmd;
+}
+
 void cmd_free(Cmd *cmd) {
     if (!cmd) return;
 
@@ -314,6 +356,11 @@ void cmd_free(Cmd *cmd) {
             expr_free(cmd->as.while_cmd.condition);
             cmd_list_free(&cmd->as.while_cmd.body);
             break;
+        case CMD_ARRAY_ASSIGN: 
+            free(cmd->as.array_assign.name);
+            expr_free(cmd->as.array_assign.index);
+            expr_free(cmd->as.array_assign.value);
+            break;
     }
     free(cmd);
 }
@@ -325,6 +372,8 @@ Decl *decl_var_new(const char *name, Expr *value) {
     d->kind = DECL_VAR;
     d->as.var_decl.name = xstrdup(name);
     d->as.var_decl.value = value;
+    d->as.var_decl.is_array = 0;  
+    d->as.var_decl.array_size = 0;
     return d;
 }
 
@@ -346,7 +395,7 @@ void decl_free(Decl *d) {
     
     if (d->kind == DECL_VAR) {
         free(d->as.var_decl.name);
-        expr_free(d->as.var_decl.value);
+        if (d->as.var_decl.value) expr_free(d->as.var_decl.value); // ALTERADO
     } else if (d->kind == DECL_FUN) {
         free(d->as.fun_decl.name);
         string_list_free(&d->as.fun_decl.params);
