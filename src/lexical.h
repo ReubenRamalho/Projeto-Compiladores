@@ -21,6 +21,9 @@ typedef enum {
     TOK_LBRACE,
     TOK_RBRACE,
     TOK_COMMA,   // Ponto e vírgula
+    TOK_OP_LE,   // <=
+    TOK_OP_GE,   // >=
+    TOK_OP_NE,   // !=
     TOK_OP_ADD,
     TOK_OP_SUB,
     TOK_OP_MUL,

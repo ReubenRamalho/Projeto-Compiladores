@@ -1,11 +1,23 @@
-var val = 100;
-
-fun teste(val) {
-    var extra = 10;
-    return val + extra;
+fun max_tres(a, b, c) {
+    var maior = 0;
+    
+    if a >= b {
+        if a >= c {
+            maior = a;
+        } else {
+            maior = c;
+        }
+    } else {
+        if b >= c {
+            maior = b;
+        } else {
+            maior = c;
+        }
+    }
+    
+    return maior;
 }
 
 main {
-    val = teste(5);
-    return val; 
+    return max_tres(15, 42, 8);
 }

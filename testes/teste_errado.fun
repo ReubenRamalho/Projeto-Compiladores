@@ -1,7 +1,10 @@
-fun dobro(x) {
-    return x * 2;
-}
+var limite = 10;
 
 main {
-    return dobro(5, 10);
+    if limite => 5 {
+        limite = 0;
+    } else {
+        limite = 1;
+    }
+    return limite;
 }

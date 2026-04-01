@@ -1,8 +1,9 @@
-fun soma_um(a) {
-    b = a + 1; 
-    return b;
+var calcular = 100;
+
+fun calcular(x) {
+    return x * 2;
 }
 
 main {
-    return soma_um(5);
+    return calcular(5);
 }
