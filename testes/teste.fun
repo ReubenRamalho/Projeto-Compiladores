@@ -1,13 +1,11 @@
-fun fat(n) {
-    var res = 1;
-    if n < 2 {
-        res = 1;
-    } else {
-        res = n * fat(n - 1);
-    }
-    return res;
-}
+var dividendo = 27;
+var divisor = 4;
+var quociente = 0;
 
 main {
-    return fat(5);
+    while dividendo >= divisor {
+        dividendo = dividendo - divisor;
+        quociente = quociente + 1;
+    }
+    return quociente;
 }

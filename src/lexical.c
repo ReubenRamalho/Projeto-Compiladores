@@ -94,12 +94,22 @@ Token lexer_next(Lexer *lx) {
         return make_simple_token(TOK_OP_DIV, lx->i - 1);
     }
     if (c == '<') {
+        size_t pos = lx->i;
         lx->i++;
-        return make_simple_token(TOK_OP_LT, lx->i - 1);
+        if (lx->src[lx->i] == '=') {
+            lx->i++;
+            return make_simple_token(TOK_OP_LE, pos);
+        }
+        return make_simple_token(TOK_OP_LT, pos);
     }
     if (c == '>') {
+        size_t pos = lx->i;
         lx->i++;
-        return make_simple_token(TOK_OP_GT, lx->i - 1);
+        if (lx->src[lx->i] == '=') {
+            lx->i++;
+            return make_simple_token(TOK_OP_GE, pos);
+        }
+        return make_simple_token(TOK_OP_GT, pos);
     }
     if (c == '=') {
         size_t pos = lx->i;
@@ -109,6 +119,15 @@ Token lexer_next(Lexer *lx) {
             return make_simple_token(TOK_OP_EQ, pos);
         }
         return make_simple_token(TOK_EQUAL, pos);
+    }
+    if (c == '!') {
+        size_t pos = lx->i;
+        lx->i++;
+        if (lx->src[lx->i] == '=') {
+            lx->i++;
+            return make_simple_token(TOK_OP_NE, pos);
+        }
+        return make_simple_token(TOK_INVALID, pos); 
     }
 
     if (isalpha((unsigned char)c)) {

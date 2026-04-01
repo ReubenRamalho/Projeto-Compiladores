@@ -14,6 +14,9 @@ static BinOpKind token_to_binop(TokenKind kind) {
         case TOK_OP_LT:  return OP_LT;
         case TOK_OP_GT:  return OP_GT;
         case TOK_OP_EQ:  return OP_EQ;
+        case TOK_OP_LE:  return OP_LE;  // Novo
+        case TOK_OP_GE:  return OP_GE;  // Novo
+        case TOK_OP_NE:  return OP_NE;  // Novo
         default:
             die("Erro interno: token inválido para operador binário");
             return OP_ADD;
@@ -178,7 +181,8 @@ Expr *parse_exp_a(Parser *p) {
 Expr *parse_exp(Parser *p) {
     Expr *left = parse_exp_a(p);
 
-    while (p->cur.kind == TOK_OP_LT || p->cur.kind == TOK_OP_GT || p->cur.kind == TOK_OP_EQ) {
+    while (p->cur.kind == TOK_OP_LT || p->cur.kind == TOK_OP_GT || p->cur.kind == TOK_OP_EQ ||
+           p->cur.kind == TOK_OP_LE || p->cur.kind == TOK_OP_GE || p->cur.kind == TOK_OP_NE) {
         TokenKind op = p->cur.kind;
         Expr *right;
 

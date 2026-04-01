@@ -132,14 +132,25 @@ static void gen_expr(FILE *out, const Expr *e, LocalEnv *env) {
                 case OP_LT:
                 case OP_GT:
                 case OP_EQ:
+                case OP_LE:
+                case OP_GE:
+                case OP_NE:
                     emit(out, "  xor %%rcx, %%rcx");
                     emit(out, "  cmp %%rbx, %%rax");
                     if (e->as.binop.op == OP_LT) {
                         emit(out, "  setl %%cl");
-                    } else if (e->as.binop.op == OP_GT) {
+                    } 
+                    else if (e->as.binop.op == OP_EQ) {
+                        emit(out, "  sete %%cl");
+                    }else if (e->as.binop.op == OP_GT) {
                         emit(out, "  setg %%cl");
-                    } else {
-                        emit(out, "  setz %%cl");
+                    }
+                    else if (e->as.binop.op == OP_LE) {
+                        emit(out, "  setle %%cl");
+                    } else if (e->as.binop.op == OP_GE) {
+                        emit(out, "  setge %%cl");
+                    } else if (e->as.binop.op == OP_NE) {
+                        emit(out, "  setne %%cl");
                     }
                     emit(out, "  mov %%rcx, %%rax");
                     return;

@@ -12,7 +12,10 @@ typedef enum {
     OP_DIV,
     OP_LT,
     OP_GT,
-    OP_EQ
+    OP_EQ,
+    OP_LE,   // Novo: Menor ou igual
+    OP_GE,   // Novo: Maior ou igual
+    OP_NE    // Novo: Diferente
 } BinOpKind;
 
 /**
