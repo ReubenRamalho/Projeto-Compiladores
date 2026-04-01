@@ -17,11 +17,11 @@ typedef enum {
 typedef struct {
     char *name;
     SymKind kind;
-    size_t arity; // Utilizado apenas se kind == SYM_FUN (número de parâmetros)
+    size_t arity;
 } Symbol;
 
 /**
- * @brief Tabela de símbolos dinâmica. Agora armazena objetos do tipo Symbol.
+ * @brief Tabela de símbolos dinâmica.
  */
 typedef struct {
     Symbol *items;
@@ -29,13 +29,4 @@ typedef struct {
     size_t capacity;
 } SymbolTable;
 
-/**
- * @brief Realiza a análise semântica do programa Fun.
- *
- * Verifica:
- * - uso de variável antes da declaração (respeitando escopo local e global);
- * - redeclaração de variáveis no mesmo escopo;
- * - chamadas a funções não declaradas ou com número incorreto de argumentos;
- * - se uma variável está tentando ser chamada como função ou vice-versa.
- */
 void semantic_check_program(const Program *program);
