@@ -23,6 +23,7 @@ typedef struct {
 
 /**
  * @brief Tabela de símbolos dinâmica.
+ * @brief Tabela de símbolos dinâmica.
  */
 typedef struct {
     Symbol *items;

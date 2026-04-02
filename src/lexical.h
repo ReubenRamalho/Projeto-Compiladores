@@ -3,8 +3,7 @@
 #include <stddef.h>
 
 /**
- * @brief Tipos de tokens da linguagem Fun.
- * 
+ * @brief Tipos de tokens da linguagem Fun estendida.
  */
 typedef enum {
     TOK_INT,
@@ -13,19 +12,24 @@ typedef enum {
     TOK_ELSE,
     TOK_WHILE,
     TOK_RETURN,
-    TOK_FUN,     // Função
-    TOK_VAR,     // Variável
-    TOK_MAIN,    // Main
+    TOK_FUN,
+    TOK_VAR,
+    TOK_MAIN,
+    TOK_TRUE,
+    TOK_FALSE,
+    TOK_AND,
+    TOK_OR,
+    TOK_NOT,
     TOK_LPAREN,
     TOK_RPAREN,
     TOK_LBRACE,
     TOK_RBRACE,
     TOK_LBRACKET, // '['
     TOK_RBRACKET, // ']'
-    TOK_COMMA,   // Ponto e vírgula
-    TOK_OP_LE,   // <=
-    TOK_OP_GE,   // >=
-    TOK_OP_NE,   // !=
+    TOK_COMMA,
+    TOK_OP_LE,
+    TOK_OP_GE,
+    TOK_OP_NE,
     TOK_OP_ADD,
     TOK_OP_SUB,
     TOK_OP_MUL,
@@ -57,23 +61,7 @@ typedef struct {
     size_t i;
 } Lexer;
 
-/**
- * @brief Inicializa o estado do analisador léxico.
- */
 void lexer_init(Lexer *lx, const char *src);
-
-/**
- * @brief Pula espaços em branco e quebras de linha.
- */
 void lexer_skip_ws(Lexer *lx);
-
-/**
- * @brief Retorna o próximo token encontrado no código-fonte.
- * 
- */
 Token lexer_next(Lexer *lx);
-
-/**
- * @brief Libera a memória alocada para o lexema do token.
- */
 void token_free(Token *t);

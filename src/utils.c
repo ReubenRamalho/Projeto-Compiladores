@@ -21,18 +21,14 @@ char *read_entire_file(const char *path) {
     size_t got;
 
     if (!f) die("Erro abrindo '%s': %s", path, strerror(errno));
-
     if (fseek(f, 0, SEEK_END) != 0) die("fseek falhou");
     n = ftell(f);
     if (n < 0) die("ftell falhou");
     rewind(f);
-
     buf = (char *)malloc((size_t)n + 1);
     if (!buf) die("Sem memória");
-
     got = fread(buf, 1, (size_t)n, f);
     fclose(f);
-
     if (got != (size_t)n) die("Leitura incompleta");
     buf[n] = '\0';
     return buf;

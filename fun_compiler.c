@@ -15,17 +15,11 @@
 #include "src/semantic.h"
 #include "src/utils.h"
 
-/**
- * @brief Estrutura auxiliar para mapear variáveis locais aos seus offsets no %rbp.
- */
 typedef struct {
     char *name;
     int offset;
 } EnvVar;
 
-/**
- * @brief Ambiente local usado durante a geração de código de uma função.
- */
 typedef struct {
     EnvVar *vars;
     size_t count;
@@ -50,8 +44,9 @@ static void env_add(LocalEnv *env, const char *name, int offset) {
 }
 
 static int env_find(const LocalEnv *env, const char *name) {
+    size_t i;
     if (!env) return -1;
-    for (size_t i = 0; i < env->count; i++) {
+    for (i = 0; i < env->count; i++) {
         if (strcmp(env->vars[i].name, name) == 0) {
             return env->vars[i].offset;
         }
@@ -60,12 +55,9 @@ static int env_find(const LocalEnv *env, const char *name) {
 }
 
 static void env_free(LocalEnv *env) {
-    if (env->vars) free(env->vars);
+    free(env->vars);
 }
 
-/**
- * @brief Gera um rótulo numérico único para ifs e whiles.
- */
 static long next_label_id(void) {
     static long counter = 0;
     return counter++;
@@ -73,9 +65,12 @@ static long next_label_id(void) {
 
 static void gen_cmd_list(FILE *out, const CmdList *list, LocalEnv *env);
 
-/**
- * @brief Gera código para uma expressão, deixando o resultado em %rax.
- */
+static void normalize_rax_to_bool(FILE *out) {
+    emit(out, "  cmp $0, %%rax");
+    emit(out, "  mov $0, %%rax");
+    emit(out, "  setne %%al");
+}
+
 static void gen_expr(FILE *out, const Expr *e, LocalEnv *env) {
     int offset;
     long i;
@@ -85,6 +80,10 @@ static void gen_expr(FILE *out, const Expr *e, LocalEnv *env) {
     switch (e->kind) {
         case EXPR_INT:
             emit(out, "  mov $%ld, %%rax", e->as.int_value);
+            return;
+
+        case EXPR_BOOL:
+            emit(out, "  mov $%d, %%rax", e->as.bool_value ? 1 : 0);
             return;
 
         case EXPR_VAR:
@@ -115,6 +114,17 @@ static void gen_expr(FILE *out, const Expr *e, LocalEnv *env) {
             emit(out, "  mov (%%rbx,%%rcx,8), %%rax");
             return;
 
+        case EXPR_UNOP:
+            gen_expr(out, e->as.unop.operand, env);
+            switch (e->as.unop.op) {
+                case UOP_NOT:
+                    emit(out, "  cmp $0, %%rax");
+                    emit(out, "  mov $0, %%rax");
+                    emit(out, "  sete %%al");
+                    return;
+            }
+            return;
+
         case EXPR_BINOP:
             gen_expr(out, e->as.binop.right, env);
             emit(out, "  push %%rax");
@@ -143,20 +153,29 @@ static void gen_expr(FILE *out, const Expr *e, LocalEnv *env) {
                 case OP_NE:
                     emit(out, "  xor %%rcx, %%rcx");
                     emit(out, "  cmp %%rbx, %%rax");
-                    if (e->as.binop.op == OP_LT) {
-                        emit(out, "  setl %%cl");
-                    } else if (e->as.binop.op == OP_GT) {
-                        emit(out, "  setg %%cl");
-                    } else if (e->as.binop.op == OP_LE) {
-                        emit(out, "  setle %%cl");
-                    } else if (e->as.binop.op == OP_GE) {
-                        emit(out, "  setge %%cl");
-                    } else if (e->as.binop.op == OP_NE) {
-                        emit(out, "  setne %%cl");
-                    } else if (e->as.binop.op == OP_EQ) { // CORRIGIDO: Bug do ==
-                        emit(out, "  sete %%cl");
-                    }
+                    if (e->as.binop.op == OP_LT) emit(out, "  setl %%cl");
+                    else if (e->as.binop.op == OP_GT) emit(out, "  setg %%cl");
+                    else if (e->as.binop.op == OP_EQ) emit(out, "  sete %%cl");
+                    else if (e->as.binop.op == OP_LE) emit(out, "  setle %%cl");
+                    else if (e->as.binop.op == OP_GE) emit(out, "  setge %%cl");
+                    else if (e->as.binop.op == OP_NE) emit(out, "  setne %%cl");
+                    else emit(out, "  setne %%cl");
                     emit(out, "  mov %%rcx, %%rax");
+                    return;
+                case OP_AND:
+                    normalize_rax_to_bool(out);
+                    emit(out, "  mov %%rax, %%rcx");
+                    emit(out, "  mov %%rbx, %%rax");
+                    normalize_rax_to_bool(out);
+                    emit(out, "  and %%rcx, %%rax");
+                    return;
+                case OP_OR:
+                    normalize_rax_to_bool(out);
+                    emit(out, "  mov %%rax, %%rcx");
+                    emit(out, "  mov %%rbx, %%rax");
+                    normalize_rax_to_bool(out);
+                    emit(out, "  or %%rcx, %%rax");
+                    normalize_rax_to_bool(out);
                     return;
             }
             return;
@@ -248,9 +267,6 @@ static void gen_cmd_list(FILE *out, const CmdList *list, LocalEnv *env) {
     }
 }
 
-/**
- * @brief Gera o código completo de uma função, gerindo seu Stack Frame (Registro de Ativação).
- */
 static void gen_func(FILE *out, const Decl *decl) {
     LocalEnv env;
     size_t i;
@@ -270,7 +286,7 @@ static void gen_func(FILE *out, const Decl *decl) {
 
     // Mapeia parâmetros (Mantido, independente do tamanho do local_bytes)
     for (i = 0; i < decl->as.fun_decl.params.count; i++) {
-        env_add(&env, decl->as.fun_decl.params.items[i], local_bytes + 16 + (i * 8));
+        env_add(&env, decl->as.fun_decl.params.items[i], (int)(local_bytes + 16 + (i * 8)));
     }
 
     // ALTERADO: Mapeia variáveis locais e arrays dinamicamente
@@ -283,13 +299,10 @@ static void gen_func(FILE *out, const Decl *decl) {
         }
     }
 
-    // Assinatura e Prólogo da Função
     emit(out, "");
     emit(out, "%s:", decl->as.fun_decl.name);
     emit(out, "  push %%rbp");
-    if (local_bytes > 0) {
-        emit(out, "  sub $%ld, %%rsp", local_bytes);
-    }
+    if (local_bytes > 0) emit(out, "  sub $%ld, %%rsp", local_bytes);
     emit(out, "  mov %%rsp, %%rbp");
 
     // Inicialização apenas das variáveis escalares (Arrays locais iniciam com lixo de memória por padrão)
@@ -300,26 +313,17 @@ static void gen_func(FILE *out, const Decl *decl) {
         }
     }
 
-    // Corpo e Expressão de Retorno
     gen_cmd_list(out, &decl->as.fun_decl.body, &env);
     gen_expr(out, decl->as.fun_decl.result_expr, &env);
 
-    // Epílogo da Função
-    if (local_bytes > 0) {
-        emit(out, "  add $%ld, %%rsp", local_bytes);
-    }
+    if (local_bytes > 0) emit(out, "  add $%ld, %%rsp", local_bytes);
     emit(out, "  pop %%rbp");
     emit(out, "  ret");
-
     env_free(&env);
 }
 
-/**
- * @brief Emite apenas variáveis globais (ignora funções) na seção .bss.
- */
 static void gen_bss(FILE *out, const Program *program) {
     size_t i;
-
     emit(out, ".section .bss");
     for (i = 0; i < program->decl_count; i++) {
         if (program->decls[i]->kind == DECL_VAR) {
@@ -339,7 +343,6 @@ static void gen_bss(FILE *out, const Program *program) {
  */
 static void gen_text(FILE *out, const Program *program) {
     size_t i;
-
     emit(out, ".section .text");
     emit(out, ".globl _start");
     emit(out, "_start:");
@@ -354,7 +357,6 @@ static void gen_text(FILE *out, const Program *program) {
 
     gen_cmd_list(out, &program->main_body, NULL);
     gen_expr(out, program->main_result, NULL);
-    
     emit(out, "  call imprime_num");
     emit(out, "  call sair");
     emit(out, "");
@@ -389,10 +391,8 @@ int main(int argc, char **argv) {
 
     src = read_entire_file(argv[1]);
     program = parse_program(src);
-
     semantic_check_program(program);
     write_output_s("output.s", program);
-
     program_free(program);
     free(src);
     return 0;
