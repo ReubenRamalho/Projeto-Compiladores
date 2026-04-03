@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ * Interface pública do parser responsável por transformar a sequência
+ * de tokens em uma árvore sintática abstrata (AST).
+ */
+
 #include "ast.h"
 #include "lexical.h"
 
@@ -12,11 +17,16 @@ typedef struct {
     Token cur;
 } Parser;
 
+/* Inicializa o parser com o código-fonte. */
 void parser_init(Parser *p, const char *src);
+/* Emite um erro sintático contextualizado. */
 void parser_error_at(Parser *p, size_t pos, const char *msg);
+/* Avança para o próximo token. */
 void advance(Parser *p);
+/* Verifica se o token atual é o esperado. */
 void expect(Parser *p, TokenKind kind, const char *what);
 
+/* Faz o parsing do programa inteiro. */
 Program *parse_program(const char *src);
 Decl *parse_decl(Parser *p);
 VarDecl *parse_vardecl(Parser *p);

@@ -5,6 +5,9 @@
 
 #include "utils.h"
 
+/*
+ * Encerra o programa imediatamente exibindo uma mensagem de erro formatada.
+ */
 void die(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -14,6 +17,9 @@ void die(const char *fmt, ...) {
     exit(1);
 }
 
+/*
+ * Lê um arquivo inteiro para memória e devolve um buffer terminado em \0.
+ */
 char *read_entire_file(const char *path) {
     FILE *f = fopen(path, "rb");
     long n;
@@ -34,6 +40,10 @@ char *read_entire_file(const char *path) {
     return buf;
 }
 
+/*
+ * Escreve uma linha formatada no arquivo de saída usado pelo gerador
+ * de código ou por outras etapas do compilador.
+ */
 void emit(FILE *out, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);

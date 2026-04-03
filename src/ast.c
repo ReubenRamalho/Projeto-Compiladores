@@ -4,6 +4,10 @@
 #include "ast.h"
 #include "utils.h"
 
+/*
+ * Cria uma cópia dinâmica de uma string para que a AST seja dona
+ * da memória dos nomes que armazena.
+ */
 static char *xstrdup(const char *s) {
     size_t n;
     char *copy;
@@ -18,12 +22,14 @@ static char *xstrdup(const char *s) {
     return copy;
 }
 
+/* Inicializa uma lista dinâmica de expressões. */
 void expr_list_init(ExprList *list) {
     list->items = NULL;
     list->count = 0;
     list->capacity = 0;
 }
 
+/* Adiciona uma expressão ao final da lista, expandindo capacidade quando necessário. */
 void expr_list_add(ExprList *list, Expr *expr) {
     Expr **new_items;
     size_t new_cap;
@@ -38,6 +44,7 @@ void expr_list_add(ExprList *list, Expr *expr) {
     list->items[list->count++] = expr;
 }
 
+/* Cria uma nova lista com os mesmos ponteiros de expressão da lista original. */
 static ExprList expr_list_clone(const ExprList *src) {
     ExprList list;
     size_t i;
@@ -48,6 +55,7 @@ static ExprList expr_list_clone(const ExprList *src) {
     return list;
 }
 
+/* Libera a lista de expressões e todas as expressões armazenadas nela. */
 void expr_list_free(ExprList *list) {
     size_t i;
     if (!list) return;
@@ -60,6 +68,7 @@ void expr_list_free(ExprList *list) {
     list->capacity = 0;
 }
 
+/* Cria um nó de expressão inteira. */
 Expr *expr_int(long v) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -68,6 +77,7 @@ Expr *expr_int(long v) {
     return e;
 }
 
+/* Cria um nó de expressão booleana. */
 Expr *expr_bool(int v) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -76,6 +86,7 @@ Expr *expr_bool(int v) {
     return e;
 }
 
+/* Cria um nó de acesso a variável simples. */
 Expr *expr_var(const char *name) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -84,6 +95,7 @@ Expr *expr_var(const char *name) {
     return e;
 }
 
+/* Cria um nó de operação binária. */
 Expr *expr_binop(BinOpKind op, Expr *left, Expr *right) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -94,6 +106,7 @@ Expr *expr_binop(BinOpKind op, Expr *left, Expr *right) {
     return e;
 }
 
+/* Cria um nó de operação unária. */
 Expr *expr_unop(UnOpKind op, Expr *operand) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -103,6 +116,7 @@ Expr *expr_unop(UnOpKind op, Expr *operand) {
     return e;
 }
 
+/* Cria um nó de chamada de função com cópia da lista de argumentos. */
 Expr *expr_call(const char *fun_name, const ExprList *args) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -113,6 +127,7 @@ Expr *expr_call(const char *fun_name, const ExprList *args) {
 }
 
 
+/* Cria um nó de acesso a posição de array. */
 Expr *expr_array_access(const char *name, Expr *index) {
     Expr *e = (Expr *)calloc(1, sizeof(Expr));
     if (!e) die("Sem memória");
@@ -123,6 +138,7 @@ Expr *expr_array_access(const char *name, Expr *index) {
     return e;
 }
 
+/* Libera recursivamente toda a memória de uma expressão. */
 void expr_free(Expr *e) {
     if (!e) return;
     switch (e->kind) {
@@ -151,12 +167,14 @@ void expr_free(Expr *e) {
     free(e);
 }
 
+/* Inicializa uma lista dinâmica de strings. */
 void string_list_init(StringList *list) {
     list->items = NULL;
     list->count = 0;
     list->capacity = 0;
 }
 
+/* Adiciona uma string a uma lista dinâmica. */
 void string_list_add(StringList *list, char *str) {
     char **new_items;
     size_t new_cap;
@@ -170,6 +188,7 @@ void string_list_add(StringList *list, char *str) {
     list->items[list->count++] = str;
 }
 
+/* Duplica as strings de uma lista para uso independente na AST. */
 static StringList string_list_clone(const StringList *src) {
     StringList list;
     size_t i;
@@ -180,6 +199,7 @@ static StringList string_list_clone(const StringList *src) {
     return list;
 }
 
+/* Libera a lista de strings e o conteúdo de cada posição. */
 void string_list_free(StringList *list) {
     size_t i;
     if (!list) return;
@@ -192,6 +212,7 @@ void string_list_free(StringList *list) {
     list->capacity = 0;
 }
 
+/* Cria uma declaração de variável comum com valor inicial. */
 VarDecl *var_decl_new(const char *name, Expr *value) {
     VarDecl *vd = (VarDecl *)calloc(1, sizeof(VarDecl));
     if (!vd) die("Sem memória");
@@ -203,6 +224,7 @@ VarDecl *var_decl_new(const char *name, Expr *value) {
 }
 
 
+/* Cria uma declaração de array com tamanho fixo. */
 VarDecl *var_decl_array_new(const char *name, size_t size) {
     VarDecl *vd = (VarDecl *)calloc(1, sizeof(VarDecl));
     if (!vd) die("Sem memória");
@@ -214,6 +236,7 @@ VarDecl *var_decl_array_new(const char *name, size_t size) {
     return vd;
 }
 
+/* Libera a memória de uma declaração de variável. */
 void var_decl_free(VarDecl *vd) {
     if (!vd) return;
     free(vd->name);
@@ -221,12 +244,14 @@ void var_decl_free(VarDecl *vd) {
     free(vd);
 }
 
+/* Inicializa uma lista dinâmica de declarações de variáveis. */
 void var_decl_list_init(VarDeclList *list) {
     list->items = NULL;
     list->count = 0;
     list->capacity = 0;
 }
 
+/* Adiciona uma declaração de variável à lista. */
 void var_decl_list_add(VarDeclList *list, VarDecl *vd) {
     VarDecl **new_items;
     size_t new_cap;
@@ -240,6 +265,7 @@ void var_decl_list_add(VarDeclList *list, VarDecl *vd) {
     list->items[list->count++] = vd;
 }
 
+/* Cria uma cópia rasa da lista de variáveis locais. */
 static VarDeclList var_decl_list_clone(const VarDeclList *src) {
     VarDeclList list;
     size_t i;
@@ -251,6 +277,7 @@ static VarDeclList var_decl_list_clone(const VarDeclList *src) {
     return list;
 }
 
+/* Libera a lista de declarações e cada elemento armazenado. */
 void var_decl_list_free(VarDeclList *list) {
     size_t i;
     if (!list) return;
@@ -263,12 +290,14 @@ void var_decl_list_free(VarDeclList *list) {
     list->capacity = 0;
 }
 
+/* Inicializa uma lista dinâmica de comandos. */
 void cmd_list_init(CmdList *list) {
     list->items = NULL;
     list->count = 0;
     list->capacity = 0;
 }
 
+/* Adiciona um comando à lista, realocando espaço quando necessário. */
 void cmd_list_add(CmdList *list, Cmd *cmd) {
     Cmd **new_items;
     size_t new_capacity;
@@ -283,6 +312,7 @@ void cmd_list_add(CmdList *list, Cmd *cmd) {
     list->items[list->count++] = cmd;
 }
 
+/* Cria uma cópia rasa de uma lista de comandos. */
 static CmdList cmd_list_clone(const CmdList *src) {
     CmdList list;
     size_t i;
@@ -293,6 +323,7 @@ static CmdList cmd_list_clone(const CmdList *src) {
     return list;
 }
 
+/* Libera a lista de comandos e cada comando nela armazenado. */
 void cmd_list_free(CmdList *list) {
     size_t i;
     if (!list) return;
@@ -305,6 +336,7 @@ void cmd_list_free(CmdList *list) {
     list->capacity = 0;
 }
 
+/* Cria um comando de atribuição simples. */
 Cmd *cmd_assign(const char *name, Expr *value) {
     Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
     if (!cmd) die("Sem memória");
@@ -314,6 +346,7 @@ Cmd *cmd_assign(const char *name, Expr *value) {
     return cmd;
 }
 
+/* Cria um comando condicional com ramos then e else. */
 Cmd *cmd_if(Expr *condition, const CmdList *then_branch, const CmdList *else_branch) {
     Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
     if (!cmd) die("Sem memória");
@@ -324,6 +357,7 @@ Cmd *cmd_if(Expr *condition, const CmdList *then_branch, const CmdList *else_bra
     return cmd;
 }
 
+/* Cria um comando de repetição while. */
 Cmd *cmd_while(Expr *condition, const CmdList *body) {
     Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
     if (!cmd) die("Sem memória");
@@ -334,6 +368,7 @@ Cmd *cmd_while(Expr *condition, const CmdList *body) {
 }
 
 
+/* Cria um comando de atribuição em uma posição de array. */
 Cmd *cmd_array_assign(const char *name, Expr *index, Expr *value) {
     Cmd *cmd = (Cmd *)calloc(1, sizeof(Cmd));
     if (!cmd) die("Sem memória");
@@ -345,6 +380,7 @@ Cmd *cmd_array_assign(const char *name, Expr *index, Expr *value) {
     return cmd;
 }
 
+/* Libera recursivamente a memória associada a um comando. */
 void cmd_free(Cmd *cmd) {
     if (!cmd) return;
     switch (cmd->kind) {
@@ -370,6 +406,7 @@ void cmd_free(Cmd *cmd) {
     free(cmd);
 }
 
+/* Cria uma declaração global de variável. */
 Decl *decl_var_new(const char *name, Expr *value) {
     Decl *d = (Decl *)calloc(1, sizeof(Decl));
     if (!d) die("Sem memória");
@@ -381,6 +418,7 @@ Decl *decl_var_new(const char *name, Expr *value) {
     return d;
 }
 
+/* Cria uma declaração global de função. */
 Decl *decl_fun_new(const char *name, const StringList *params, const VarDeclList *locals, const CmdList *body, Expr *result_expr) {
     Decl *d = (Decl *)calloc(1, sizeof(Decl));
     if (!d) die("Sem memória");
@@ -395,6 +433,7 @@ Decl *decl_fun_new(const char *name, const StringList *params, const VarDeclList
     return d;
 }
 
+/* Libera uma declaração global, seja variável ou função. */
 void decl_free(Decl *d) {
     size_t i;
     if (!d) return;
@@ -414,6 +453,7 @@ void decl_free(Decl *d) {
     free(d);
 }
 
+/* Cria a estrutura principal do programa na AST. */
 Program *program_new(void) {
     Program *p = (Program *)calloc(1, sizeof(Program));
     if (!p) die("Sem memória");
@@ -421,6 +461,7 @@ Program *program_new(void) {
     return p;
 }
 
+/* Adiciona uma declaração global ao programa. */
 void program_add_decl(Program *p, Decl *d) {
     Decl **new_data;
     size_t new_capacity;
@@ -435,6 +476,7 @@ void program_add_decl(Program *p, Decl *d) {
     p->decls[p->decl_count++] = d;
 }
 
+/* Define o corpo principal e a expressão de retorno do main. */
 void program_set_main(Program *p, const CmdList *main_body, Expr *main_result) {
     size_t i;
     if (!p) return;
@@ -445,6 +487,7 @@ void program_set_main(Program *p, const CmdList *main_body, Expr *main_result) {
     p->main_result = main_result;
 }
 
+/* Libera toda a AST do programa. */
 void program_free(Program *p) {
     size_t i;
     if (!p) return;

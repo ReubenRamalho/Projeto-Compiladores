@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ * Definições do analisador léxico: tipos de tokens, estrutura do token
+ * produzido e estado interno do lexer durante a leitura do código-fonte.
+ */
+
 #include <stddef.h>
 
 /**
@@ -61,7 +66,11 @@ typedef struct {
     size_t i;
 } Lexer;
 
+/* Inicializa o lexer para começar a tokenização. */
 void lexer_init(Lexer *lx, const char *src);
+/* Consome espaços em branco da entrada atual. */
 void lexer_skip_ws(Lexer *lx);
+/* Retorna o próximo token reconhecido na entrada. */
 Token lexer_next(Lexer *lx);
+/* Libera memória dinâmica usada por um token. */
 void token_free(Token *t);

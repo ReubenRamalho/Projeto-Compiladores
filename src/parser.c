@@ -5,6 +5,10 @@
 #include "parser.h"
 #include "utils.h"
 
+/*
+ * Converte o tipo de token lido pelo lexer para o operador binário
+ * equivalente usado na AST.
+ */
 static BinOpKind token_to_binop(TokenKind kind) {
     switch (kind) {
         case TOK_OP_ADD: return OP_ADD;
@@ -25,6 +29,10 @@ static BinOpKind token_to_binop(TokenKind kind) {
     }
 }
 
+/*
+ * Faz uma cópia própria de uma string, garantindo que a AST e outras
+ * estruturas possam armazenar nomes sem depender do token original.
+ */
 static char *xstrdup(const char *s) {
     size_t n;
     char *copy;
@@ -36,12 +44,20 @@ static char *xstrdup(const char *s) {
     return copy;
 }
 
+/*
+ * Inicializa o parser, o lexer interno e já carrega o primeiro token
+ * da entrada para começar a análise sintática.
+ */
 void parser_init(Parser *p, const char *src) {
     p->src = src;
     lexer_init(&p->lx, src);
     p->cur = lexer_next(&p->lx);
 }
 
+/*
+ * Exibe uma mensagem de erro sintático destacando a linha aproximada
+ * e a posição em que o problema foi encontrado.
+ */
 void parser_error_at(Parser *p, size_t pos, const char *msg) {
     size_t start = pos;
     size_t end = pos;
@@ -54,11 +70,18 @@ void parser_error_at(Parser *p, size_t pos, const char *msg) {
     exit(1);
 }
 
+/*
+ * Descarta o token atual e avança para o próximo token produzido pelo lexer.
+ */
 void advance(Parser *p) {
     token_free(&p->cur);
     p->cur = lexer_next(&p->lx);
 }
 
+/*
+ * Verifica se o token atual é o esperado. Caso não seja, interrompe a
+ * compilação com uma mensagem de erro sintático mais clara.
+ */
 void expect(Parser *p, TokenKind kind, const char *what) {
     if (p->cur.kind != kind) {
         char buf[160];
@@ -67,6 +90,10 @@ void expect(Parser *p, TokenKind kind, const char *what) {
     }
 }
 
+/*
+ * Faz uma leitura adiantada de um token sem consumir a entrada real.
+ * É útil para decidir entre variável, chamada de função e acesso a array.
+ */
 static TokenKind peek_kind(Parser *p) {
     Lexer temp_lx = p->lx;
     Token next = lexer_next(&temp_lx);
@@ -75,6 +102,10 @@ static TokenKind peek_kind(Parser *p) {
     return kind;
 }
 
+/*
+ * Reconhece expressões primárias: inteiros, booleanos, identificadores,
+ * chamadas de função, acesso a arrays e expressões entre parênteses.
+ */
 Expr *parse_prim(Parser *p) {
     if (p->cur.kind == TOK_INT) {
         long v = p->cur.int_value;
@@ -163,6 +194,9 @@ Expr *parse_prim(Parser *p) {
     return NULL;
 }
 
+/*
+ * Trata operadores unários. Nesta linguagem, o parser dá suporte ao NOT.
+ */
 Expr *parse_exp_u(Parser *p) {
     if (p->cur.kind == TOK_NOT) {
         Expr *operand;
@@ -173,6 +207,9 @@ Expr *parse_exp_u(Parser *p) {
     return parse_prim(p);
 }
 
+/*
+ * Trata multiplicação e divisão, respeitando a precedência desses operadores.
+ */
 Expr *parse_exp_m(Parser *p) {
     Expr *left = parse_exp_u(p);
     while (p->cur.kind == TOK_OP_MUL || p->cur.kind == TOK_OP_DIV) {
@@ -185,6 +222,9 @@ Expr *parse_exp_m(Parser *p) {
     return left;
 }
 
+/*
+ * Trata soma e subtração, usando como base as expressões multiplicativas.
+ */
 Expr *parse_exp_a(Parser *p) {
     Expr *left = parse_exp_m(p);
     while (p->cur.kind == TOK_OP_ADD || p->cur.kind == TOK_OP_SUB) {
@@ -197,6 +237,9 @@ Expr *parse_exp_a(Parser *p) {
     return left;
 }
 
+/*
+ * Trata operadores de comparação como <, >, ==, <=, >= e !=.
+ */
 Expr *parse_exp_cmp(Parser *p) {
     Expr *left = parse_exp_a(p);
     while (p->cur.kind == TOK_OP_LT || p->cur.kind == TOK_OP_GT || p->cur.kind == TOK_OP_EQ ||
@@ -210,6 +253,9 @@ Expr *parse_exp_cmp(Parser *p) {
     return left;
 }
 
+/*
+ * Trata expressões booleanas ligadas por AND.
+ */
 Expr *parse_exp_and(Parser *p) {
     Expr *left = parse_exp_cmp(p);
     while (p->cur.kind == TOK_AND) {
@@ -221,6 +267,9 @@ Expr *parse_exp_and(Parser *p) {
     return left;
 }
 
+/*
+ * Trata expressões booleanas ligadas por OR, no nível mais alto.
+ */
 Expr *parse_exp_or(Parser *p) {
     Expr *left = parse_exp_and(p);
     while (p->cur.kind == TOK_OR) {
@@ -232,10 +281,17 @@ Expr *parse_exp_or(Parser *p) {
     return left;
 }
 
+/*
+ * Porta de entrada para o parsing de expressões completas.
+ */
 Expr *parse_exp(Parser *p) {
     return parse_exp_or(p);
 }
 
+/*
+ * Reconhece declarações de variável. Pode montar tanto variáveis comuns
+ * quanto declarações de arrays com tamanho fixo.
+ */
 VarDecl *parse_vardecl(Parser *p) {
     char *name;
     VarDecl *vd;
@@ -277,6 +333,10 @@ VarDecl *parse_vardecl(Parser *p) {
     return vd;
 }
 
+/*
+ * Reconhece uma declaração de função completa: nome, parâmetros,
+ * variáveis locais, corpo e expressão final de retorno.
+ */
 Decl *parse_fundecl(Parser *p) {
     char *name;
     StringList params;
@@ -331,6 +391,9 @@ Decl *parse_fundecl(Parser *p) {
     return fun_decl;
 }
 
+/*
+ * Decide se a próxima declaração global é de variável ou de função.
+ */
 Decl *parse_decl(Parser *p) {
     if (p->cur.kind == TOK_VAR) {
         VarDecl *vd = parse_vardecl(p);
@@ -350,6 +413,10 @@ Decl *parse_decl(Parser *p) {
     return NULL;
 }
 
+/*
+ * Reconhece comandos de atribuição, incluindo atribuição simples e
+ * atribuição em posição específica de arrays.
+ */
 static Cmd *parse_assign_cmd(Parser *p) {
     char *name;
     Cmd *cmd;
@@ -389,6 +456,10 @@ static Cmd *parse_assign_cmd(Parser *p) {
     return cmd;
 }
 
+/*
+ * Lê uma sequência de comandos até encontrar o token que fecha
+ * o bloco corrente, como } ou return.
+ */
 CmdList parse_cmd_block(Parser *p, TokenKind terminator) {
     CmdList list;
     cmd_list_init(&list);
@@ -401,6 +472,9 @@ CmdList parse_cmd_block(Parser *p, TokenKind terminator) {
     return list;
 }
 
+/*
+ * Reconhece um comando individual da linguagem: atribuição, if ou while.
+ */
 Cmd *parse_cmd(Parser *p) {
     if (p->cur.kind == TOK_IDENT) {
         return parse_assign_cmd(p);
@@ -451,6 +525,10 @@ Cmd *parse_cmd(Parser *p) {
     return NULL;
 }
 
+/*
+ * Constrói a AST do programa inteiro: declarações globais, bloco main,
+ * comandos do main e expressão final de retorno.
+ */
 Program *parse_program(const char *src) {
     Parser p;
     Program *program;

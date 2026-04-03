@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ * Estruturas e função principal da análise semântica, etapa que verifica
+ * se os nomes e usos da AST fazem sentido além da sintaxe.
+ */
+
 #include "ast.h"
 
 /**

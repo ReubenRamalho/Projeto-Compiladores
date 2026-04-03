@@ -4,12 +4,19 @@
 #include "semantic.h"
 #include "utils.h"
 
+/*
+ * Inicializa uma tabela de símbolos vazia para armazenar nomes
+ * declarados em determinado escopo.
+ */
 static void symtab_init(SymbolTable *st) {
     st->items = NULL;
     st->count = 0;
     st->capacity = 0;
 }
 
+/*
+ * Libera toda a memória usada pela tabela de símbolos.
+ */
 static void symtab_free(SymbolTable *st) {
     size_t i;
     if (!st->items) return;
@@ -22,6 +29,9 @@ static void symtab_free(SymbolTable *st) {
     st->capacity = 0;
 }
 
+/*
+ * Procura um símbolo pelo nome dentro da tabela informada.
+ */
 static Symbol *symtab_lookup(const SymbolTable *st, const char *name) {
     size_t i;
     if (!st) return NULL;
@@ -33,6 +43,9 @@ static Symbol *symtab_lookup(const SymbolTable *st, const char *name) {
     return NULL;
 }
 
+/*
+ * Insere um novo símbolo na tabela, impedindo redeclarações no mesmo escopo.
+ */
 static void symtab_add(SymbolTable *st, const char *name, SymKind kind, size_t arity, int is_array) {
     size_t new_cap;
     char *name_copy;
@@ -63,6 +76,10 @@ static void symtab_add(SymbolTable *st, const char *name, SymKind kind, size_t a
 static void check_expr(const Expr *e, SymbolTable *global_st, SymbolTable *local_st);
 static void check_cmd_list(const CmdList *list, SymbolTable *global_st, SymbolTable *local_st);
 
+/*
+ * Valida semanticamente uma expressão: uso correto de nomes,
+ * chamadas de função e acessos a arrays.
+ */
 static void check_expr(const Expr *e, SymbolTable *global_st, SymbolTable *local_st) {
     Symbol *sym;
     size_t i;
@@ -128,6 +145,9 @@ static void check_expr(const Expr *e, SymbolTable *global_st, SymbolTable *local
     }
 }
 
+/*
+ * Valida semanticamente um comando individual.
+ */
 static void check_cmd(const Cmd *cmd, SymbolTable *global_st, SymbolTable *local_st) {
     Symbol *sym;
     switch (cmd->kind) {
@@ -176,6 +196,9 @@ static void check_cmd(const Cmd *cmd, SymbolTable *global_st, SymbolTable *local
     }
 }
 
+/*
+ * Percorre e valida todos os comandos de um bloco.
+ */
 static void check_cmd_list(const CmdList *list, SymbolTable *global_st, SymbolTable *local_st) {
     size_t i;
     for (i = 0; i < list->count; i++) {
@@ -183,6 +206,10 @@ static void check_cmd_list(const CmdList *list, SymbolTable *global_st, SymbolTa
     }
 }
 
+/*
+ * Executa a análise semântica do programa inteiro, controlando
+ * escopo global, escopos locais de funções e regras de uso dos símbolos.
+ */
 void semantic_check_program(const Program *program) {
     SymbolTable global_st;
     size_t i;

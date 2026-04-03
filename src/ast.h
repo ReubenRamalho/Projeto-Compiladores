@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ * Estruturas da AST (Árvore Sintática Abstrata) usadas pelo compilador
+ * para representar expressões, comandos, declarações e o programa final.
+ */
+
 #include <stddef.h>
 
 /**
