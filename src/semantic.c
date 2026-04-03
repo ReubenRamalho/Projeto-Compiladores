@@ -185,7 +185,6 @@ static void check_cmd_list(const CmdList *list, SymbolTable *global_st, SymbolTa
 
 void semantic_check_program(const Program *program) {
     SymbolTable global_st;
-    SymbolTable local_st;
     size_t i;
     size_t j;
 

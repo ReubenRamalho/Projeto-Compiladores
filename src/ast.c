@@ -245,8 +245,8 @@ static VarDeclList var_decl_list_clone(const VarDeclList *src) {
     size_t i;
     var_decl_list_init(&list);
     for (i = 0; i < src->count; i++) {
-        // CUIDADO: Este clone precisa replicar as flags is_array corretamente se for chamado (aqui só estamos passando ponteiros)
-        var_decl_list_add(&list, var_decl_new(src->items[i]->name, src->items[i]->value));
+        // Cópia rasa (apenas o ponteiro). É isso que queremos!
+        var_decl_list_add(&list, src->items[i]);
     }
     return list;
 }
@@ -383,15 +383,13 @@ Decl *decl_var_new(const char *name, Expr *value) {
 
 Decl *decl_fun_new(const char *name, const StringList *params, const VarDeclList *locals, const CmdList *body, Expr *result_expr) {
     Decl *d = (Decl *)calloc(1, sizeof(Decl));
-    size_t i;
     if (!d) die("Sem memória");
     d->kind = DECL_FUN;
     d->as.fun_decl.name = xstrdup(name);
     d->as.fun_decl.params = string_list_clone(params);
-    var_decl_list_init(&d->as.fun_decl.locals);
-    for (i = 0; i < locals->count; i++) {
-        var_decl_list_add(&d->as.fun_decl.locals, var_decl_new(locals->items[i]->name, locals->items[i]->value));
-    }
+    
+    d->as.fun_decl.locals = var_decl_list_clone(locals);
+    
     d->as.fun_decl.body = cmd_list_clone(body);
     d->as.fun_decl.result_expr = result_expr;
     return d;

@@ -1,4 +1,4 @@
-# Compilador Fun — Linguagem com Funções, Escopo Local, Recursão e Booleanos
+# Compilador Fun — Linguagem com Funções, Escopo Local, Recursão, Booleanos e Arrays
 
 Este projeto implementa um compilador para a linguagem **Fun**, desenvolvida ao longo da disciplina de Compiladores e estendida no **Projeto Final**.  
 A versão atual do compilador suporta:
@@ -10,7 +10,8 @@ A versão atual do compilador suporta:
 - comandos condicionais e de repetição;
 - operadores aritméticos e relacionais;
 - **valores booleanos** (`true` e `false`);
-- **operadores lógicos** (`and`, `or` e `not`).
+- **operadores lógicos** (`and`, `or` e `not`);
+- **arrays de inteiros** (globais e locais, com acesso por índices dinâmicos).
 
 O compilador lê um arquivo-fonte da linguagem Fun, constrói uma **Árvore Sintática Abstrata (AST)**, realiza **análise semântica** e gera código **assembly x86-64**, utilizando convenções de chamada baseadas na pilha. O programa gerado executa o bloco `main`, calcula o valor retornado e o imprime utilizando o `runtime.s`.
 
@@ -41,7 +42,8 @@ A organização esperada do projeto é semelhante a esta:
 │   ├── neg_aridade.fun
 │   ├── neg_var_as_fun.fun
 │   ├── neg_undeclared.fun
-│   └── pos_bool.fun
+│   ├── pos_bool.fun
+│   └── pos_arrays.fun
 └── src/
     ├── ast.c
     ├── ast.h
@@ -57,11 +59,11 @@ A organização esperada do projeto é semelhante a esta:
 
 ### Função dos módulos principais
 
-- `fun_compiler.c`: ponto de entrada do compilador e responsável pela geração de código assembly, incluindo funções, chamadas, variáveis globais e variáveis locais na pilha.
+- `fun_compiler.c`: ponto de entrada do compilador e responsável pela geração de código assembly, incluindo funções, chamadas, variáveis globais, variáveis locais na pilha e mapeamento de memória para arrays.
 - `src/ast.*`: definição e construção da AST.
 - `src/lexical.*`: analisador léxico.
 - `src/parser.*`: analisador sintático.
-- `src/semantic.*`: análise semântica com verificação de escopo e chamadas de função.
+- `src/semantic.*`: análise semântica com verificação de escopo, checagem de tipos de arrays e chamadas de função.
 - `src/utils.*`: funções auxiliares de leitura de arquivo, mensagens de erro e emissão do assembly.
 - `runtime.s`: rotinas auxiliares fornecidas para impressão e finalização do programa.
 
@@ -69,7 +71,7 @@ A organização esperada do projeto é semelhante a esta:
 
 ## A linguagem Fun
 
-A linguagem Fun é uma evolução da linguagem Cmd, adicionando **funções**, **variáveis locais** e um **bloco principal**. No projeto final, foram adicionados também **booleanos** e **operadores lógicos**. A proposta do projeto final permite implementar extensões simples como essas.
+A linguagem Fun é uma evolução da linguagem Cmd, adicionando **funções**, **variáveis locais** e um **bloco principal**. No projeto final, foram adicionados também **booleanos**, **operadores lógicos** e **arrays de inteiros**. A proposta do projeto final permite implementar extensões simples como essas.
 
 ### Estrutura geral da linguagem
 
@@ -77,11 +79,11 @@ A linguagem Fun é uma evolução da linguagem Cmd, adicionando **funções**, *
 <programa> ::= <decl>* 'main' '{' <cmd>* 'return' <exp> ';' '}'
 <decl>     ::= <vardecl> | <fundecl>
 <fundecl>  ::= 'fun' <ident> '(' <arglist>? ')' '{' <vardecl>* <cmd>* 'return' <exp> ';' '}'
-<vardecl>  ::= 'var' <ident> '=' <exp> ';'
+<vardecl>  ::= 'var' <ident> '=' <exp> ';' | 'var' <ident> '[' <int> ']' ';'
 <cmd>      ::= <if> | <while> | <atrib>
 <if>       ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
 <while>    ::= 'while' <exp> '{' <cmd>* '}'
-<atrib>    ::= <ident> '=' <exp> ';'
+<atrib>    ::= <ident> '=' <exp> ';' | <ident> '[' <exp> ']' '=' <exp> ';'
 ```
 
 ### Expressões suportadas
@@ -89,7 +91,7 @@ A linguagem Fun é uma evolução da linguagem Cmd, adicionando **funções**, *
 A linguagem aceita:
 
 - inteiros positivos;
-- variáveis;
+- variáveis simples e acessos a posições de arrays (`arr[i]`);
 - chamadas de função;
 - operadores aritméticos: `+`, `-`, `*`, `/`;
 - operadores relacionais: `<`, `>`, `==`, `!=`, `<=`, `>=`;
@@ -99,37 +101,11 @@ A linguagem aceita:
   - `and` (conjunção),
   - `or` (disjunção).
 
-### Exemplo de programa
-
-```fun
-var x = 10;
-var y = false;
-
-fun menor(a, b) {
-    return a < b;
-}
-
-fun teste(n) {
-    var ok = true;
-    if not (n < 0) {
-        ok = ok and true;
-    } else {
-        ok = false;
-    }
-    return ok;
-}
-
-main {
-    y = teste(x) or menor(3, 2);
-    return y;
-}
-```
-
 ---
 
 ## Extensões implementadas no Projeto Final
 
-No Projeto Final, o grupo adicionou duas extensões simples à linguagem Fun:
+No Projeto Final, o grupo adicionou três grandes extensões à linguagem Fun:
 
 ### 1. Valores booleanos
 Foram adicionados os literais:
@@ -149,17 +125,16 @@ Foram adicionados os operadores:
 - `or`
 - `not`
 
-Esses operadores permitem escrever expressões booleanas diretamente na linguagem, tornando os testes em `if`, `while` e `return` mais expressivos.
+Esses operadores permitem escrever expressões booleanas diretamente na linguagem, tornando os testes em `if`, `while` e `return` mais expressivos. As avaliações geram instruções nativas x86-64 (`and`, `or`), normalizando os operandos para garantir que valores diferentes de zero se tornem estritamente `1`.
 
-Exemplos:
+### 3. Arrays de Inteiros
+A linguagem agora suporta declaração, escrita e leitura em arrays de tamanho fixo:
 
-```fun
-return true;
-return false;
-return not false;
-return true and false;
-return (x < 10) or (y == 0);
-```
+- **Declaração:** `var arr[10];` (Aloca memória no `.bss` ou na pilha local calculando o deslocamento necessário).
+- **Escrita:** `arr[0] = 50;` ou `arr[i * 2] = 100;`
+- **Leitura:** `x = arr[2];`
+
+A geração de código para arrays traduz o acesso para o poderoso modo de endereçamento indexado escalado do x86-64: `(base, indice, 8)`.
 
 ---
 
@@ -168,23 +143,11 @@ return (x < 10) or (y == 0);
 ### 1. Análise léxica
 O compilador reconhece:
 
-- identificadores;
-- inteiros;
+- identificadores e inteiros;
 - palavras-chave:
-  - `fun`
-  - `var`
-  - `main`
-  - `if`
-  - `else`
-  - `while`
-  - `return`
-  - `true`
-  - `false`
-  - `and`
-  - `or`
-  - `not`
+  - `fun`, `var`, `main`, `if`, `else`, `while`, `return`, `true`, `false`, `and`, `or`, `not`
 - símbolos:
-  - `(` `)` `{` `}` `,` `;`
+  - `(` `)` `{` `}` `[` `]` `,` `;`
 - operadores:
   - `=`
   - `+` `-` `*` `/`
@@ -193,41 +156,28 @@ O compilador reconhece:
 ### 2. Análise sintática
 O parser realiza:
 
-- reconhecimento de declarações globais de variáveis;
+- reconhecimento de declarações globais de variáveis e arrays;
 - reconhecimento de declarações de função;
 - leitura da lista de parâmetros formais;
-- distinção entre variável e chamada de função usando *lookahead*;
+- distinção via *lookahead* entre atribuição escalar (`x = 1`) e indexada (`x[0] = 1`);
 - parsing do bloco `main`;
-- parsing de expressões aritméticas, relacionais e lógicas com precedência.
+- parsing de expressões aritméticas, relacionais e lógicas com rigorosa precedência (ex: `not` > `and` > `or`).
 
 ### 3. Análise semântica
 A análise semântica verifica:
 
-- uso de variável antes da declaração;
-- redeclaração no mesmo escopo;
-- uso correto de escopo global e local;
+- uso de variável antes da declaração e redeclaração no mesmo escopo;
 - **shadowing** de globais por parâmetros e variáveis locais;
-- se uma função chamada foi declarada;
-- se a quantidade de argumentos reais corresponde à aridade da função;
-- se uma variável está sendo usada como função;
-- se uma função está sendo usada como variável.
+- integridade no uso de arrays (ex: impede operações diretas com o nome do array sem índice, ou uso de índices em variáveis escalares);
+- se uma função chamada foi declarada e se a aridade corresponde;
+- se uma variável está sendo usada como função e vice-versa.
 
 ### 4. Geração de código
 O compilador gera assembly x86-64 com:
 
-- variáveis globais na seção `.bss`;
-- funções definidas com rótulos;
-- chamadas com `call`;
-- retorno com `ret`;
-- parâmetros passados pela pilha;
-- variáveis locais armazenadas no *stack frame* da função;
-- valor de retorno sempre em `%rax`.
-
-Para os booleanos:
-
-- `true` gera `1` em `%rax`;
-- `false` gera `0` em `%rax`;
-- operadores lógicos também retornam `0` ou `1`.
+- variáveis e arrays globais na seção `.bss` (calculando tamanho `N * 8` bytes);
+- funções definidas com rótulos e variáveis locais em *stack frames* estendidos para comportar arrays locais;
+- chamadas com `call`, retorno em `%rax` e parâmetros passados pela pilha.
 
 ---
 
@@ -237,7 +187,7 @@ A implementação das funções segue convenções simples baseadas na pilha:
 
 - os argumentos da chamada são empilhados antes do `call`;
 - a função cria seu próprio *stack frame* usando `%rbp`;
-- variáveis locais e parâmetros são acessados por offsets relativos a `%rbp`;
+- variáveis locais, arrays locais e parâmetros são acessados por offsets relativos a `%rbp`;
 - o valor de retorno é colocado em `%rax`;
 - o chamador é responsável por limpar os argumentos da pilha após a chamada.
 
@@ -262,7 +212,7 @@ gcc -Wall -Wextra -std=c11 fun_compiler.c src/*.c -o fun_compiler
 Depois de compilar o compilador, execute:
 
 ```bash
-./fun_compiler testes/pos_fatorial.fun
+./fun_compiler testes/pos_arrays.fun
 ```
 
 Isso irá gerar o arquivo:
@@ -302,34 +252,40 @@ O valor retornado pelo bloco `main` será impresso no terminal.
 
 ---
 
-## Exemplo completo
+## Exemplo completo com as 3 extensões
 
-### Arquivo `pos_bool.fun`
+### Arquivo `pos_arrays.fun`
 
 ```fun
-var x = true;
-var y = false;
+var memoria[5];
 
-fun check(a, b) {
-    var r = false;
-    if a and not b {
-        r = true;
-    } else {
-        r = false;
+fun preenche() {
+    var i = 0;
+    while i < 5 {
+        memoria[i] = i * 10;
+        i = i + 1;
     }
-    return r;
+    return true;
 }
 
 main {
-    y = check(x, false) or false;
-    return y;
+    var pronto = preenche();
+    var resultado = 0;
+    
+    if pronto and (memoria[2] == 20) {
+        resultado = memoria[4];
+    } else {
+        resultado = 0;
+    }
+    
+    return resultado;
 }
 ```
 
 ### Compilação e execução
 
 ```bash
-./fun_compiler testes/pos_bool.fun
+./fun_compiler testes/pos_arrays.fun
 as -o output.o output.s
 ld -o programa output.o
 ./programa
@@ -338,7 +294,7 @@ ld -o programa output.o
 ### Saída esperada
 
 ```text
-1
+40
 ```
 
 ---
@@ -354,6 +310,18 @@ main {
 }
 ```
 
+### Erro no uso de Arrays (Indexando Escalar)
+
+```fun
+var x = 10;
+
+main {
+    x[0] = 5; 
+    // Erro semântico: a variável 'x' não é um array e não pode ser indexada na atribuição
+    return x;
+}
+```
+
 ### Chamada com número errado de argumentos
 
 ```fun
@@ -363,16 +331,6 @@ fun soma(a, b) {
 
 main {
     return soma(10);
-}
-```
-
-### Variável usada como função
-
-```fun
-var x = 10;
-
-main {
-    return x();
 }
 ```
 
@@ -422,17 +380,15 @@ programa.fun
 
 ## Resumo
 
-Este projeto implementa um compilador para a linguagem Fun com:
+Este projeto implementa um compilador para a linguagem Fun estendida com:
 
 - variáveis globais e locais;
-- funções com parâmetros;
-- recursão;
-- escopo local;
-- chamadas de função;
+- arrays de inteiros locais e globais;
+- funções com parâmetros e recursão;
+- escopo local e shadowing;
 - comandos `if` e `while`;
 - operadores aritméticos e relacionais;
-- valores booleanos;
-- operadores lógicos `and`, `or` e `not`;
-- geração de código assembly x86-64.
+- valores booleanos e operadores lógicos (`and`, `or`, `not`);
+- geração nativa de código assembly x86-64.
 
 Ao final, o compilador gera um programa executável capaz de avaliar o bloco principal `main` e imprimir o valor retornado.

@@ -140,7 +140,6 @@ Expr *parse_prim(Parser *p) {
         } else {
             Expr *var_expr;
             advance(p);
-            advance(p);
             var_expr = expr_var(name);
             free(name);
             return var_expr;
