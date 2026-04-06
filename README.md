@@ -13,6 +13,12 @@ A versão atual do compilador suporta:
 - **operadores lógicos** (`and`, `or` e `not`);
 - **arrays de inteiros** (globais e locais, com acesso por índices dinâmicos).
 
+Novidas em relação a linguagem da atividade 11:
+- Novos operadores de comparação (menor-ou-igual, maior-ou-igual, diferente) - Alteração simples
+- Operadores lógicos ou booleanos (E, OU e NÃO) - Alteração Simples
+- Adicionar valores booleanos - Alteração Simples
+- Suporte para arrays de inteiros - Alteração Média
+
 O compilador lê um arquivo-fonte da linguagem Fun, constrói uma **Árvore Sintática Abstrata (AST)**, realiza **análise semântica** e gera código **assembly x86-64**, utilizando convenções de chamada baseadas na pilha. O programa gerado executa o bloco `main`, calcula o valor retornado e o imprime utilizando o `runtime.s`.
 
 ---
@@ -84,6 +90,21 @@ A linguagem Fun é uma evolução da linguagem Cmd, adicionando **funções**, *
 <if>       ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
 <while>    ::= 'while' <exp> '{' <cmd>* '}'
 <atrib>    ::= <ident> '=' <exp> ';' | <ident> '[' <exp> ']' '=' <exp> ';'
+
+<arglist>  ::= <ident> (',' <ident>)*
+<explist>  ::= <exp> (',' <exp>)*
+
+<exp>      ::= <exp_or>
+<exp_or>   ::= <exp_and> ( 'or' <exp_and> )*
+<exp_and>  ::= <exp_cmp> ( 'and' <exp_cmp> )*
+<exp_cmp>  ::= <exp_a> ( ('<' | '>' | '==' | '!=' | '<=' | '>=') <exp_a> )*
+<exp_a>    ::= <exp_m> ( ('+' | '-') <exp_m> )*
+<exp_m>    ::= <exp_u> ( ('*' | '/') <exp_u> )*
+<exp_u>    ::= 'not' <exp_u> | <prim>
+<prim>     ::= <int> | 'true' | 'false' | <ident> 
+             | <ident> '(' <explist>? ')' 
+             | <ident> '[' <exp> ']' 
+             | '(' <exp> ')'
 ```
 
 ### Expressões suportadas
