@@ -6,6 +6,11 @@
 #include "lexical.h"
 #include "utils.h"
 
+/*
+ * Cria uma cópia de um trecho da string-fonte entre as posições
+ * informadas. É usada principalmente para montar o lexema de
+ * identificadores reconhecidos pelo analisador léxico.
+ */
 static char *slice_dup(const char *src, size_t start, size_t end) {
     size_t len = end - start;
     char *s = (char *)malloc(len + 1);
@@ -15,23 +20,38 @@ static char *slice_dup(const char *src, size_t start, size_t end) {
     return s;
 }
 
+/*
+ * Inicializa o analisador léxico com o texto-fonte e começa
+ * a leitura a partir do primeiro caractere.
+ */
 void lexer_init(Lexer *lx, const char *src) {
     lx->src = src;
     lx->i = 0;
 }
 
+/*
+ * Avança enquanto houver espaços em branco, tabs ou quebras de linha.
+ * Isso evita que o parser precise lidar com esses caracteres.
+ */
 void lexer_skip_ws(Lexer *lx) {
     while (lx->src[lx->i] && isspace((unsigned char)lx->src[lx->i])) {
         lx->i++;
     }
 }
 
+/*
+ * Libera a memória associada ao lexema de um token, quando houver.
+ */
 void token_free(Token *t) {
     if (!t) return;
     free(t->lexeme);
     t->lexeme = NULL;
 }
 
+/*
+ * Monta um token simples, isto é, um token que não precisa armazenar
+ * lexema textual próprio nem valor numérico especial.
+ */
 static Token make_simple_token(TokenKind kind, size_t pos) {
     Token t;
     t.kind = kind;
@@ -41,6 +61,10 @@ static Token make_simple_token(TokenKind kind, size_t pos) {
     return t;
 }
 
+/*
+ * Lê o próximo token da entrada. Aqui ficam as regras que reconhecem
+ * símbolos simples, operadores, palavras-chave, identificadores e inteiros.
+ */
 Token lexer_next(Lexer *lx) {
     Token t;
     char c;
@@ -53,6 +77,14 @@ Token lexer_next(Lexer *lx) {
     if (c == ')') { lx->i++; return make_simple_token(TOK_RPAREN, lx->i - 1); }
     if (c == '{') { lx->i++; return make_simple_token(TOK_LBRACE, lx->i - 1); }
     if (c == '}') { lx->i++; return make_simple_token(TOK_RBRACE, lx->i - 1); }
+    if (c == '[') {
+        lx->i++;
+        return make_simple_token(TOK_LBRACKET, lx->i - 1);
+    }
+    if (c == ']') {
+        lx->i++;
+        return make_simple_token(TOK_RBRACKET, lx->i - 1);
+    }
     if (c == ';') { lx->i++; return make_simple_token(TOK_SEMI, lx->i - 1); }
     if (c == ',') { lx->i++; return make_simple_token(TOK_COMMA, lx->i - 1); }
     if (c == '+') { lx->i++; return make_simple_token(TOK_OP_ADD, lx->i - 1); }

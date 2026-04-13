@@ -5,6 +5,10 @@
 #include "parser.h"
 #include "utils.h"
 
+/*
+ * Converte o tipo de token lido pelo lexer para o operador binário
+ * equivalente usado na AST.
+ */
 static BinOpKind token_to_binop(TokenKind kind) {
     switch (kind) {
         case TOK_OP_ADD: return OP_ADD;
@@ -25,6 +29,10 @@ static BinOpKind token_to_binop(TokenKind kind) {
     }
 }
 
+/*
+ * Faz uma cópia própria de uma string, garantindo que a AST e outras
+ * estruturas possam armazenar nomes sem depender do token original.
+ */
 static char *xstrdup(const char *s) {
     size_t n;
     char *copy;
@@ -36,12 +44,20 @@ static char *xstrdup(const char *s) {
     return copy;
 }
 
+/*
+ * Inicializa o parser, o lexer interno e já carrega o primeiro token
+ * da entrada para começar a análise sintática.
+ */
 void parser_init(Parser *p, const char *src) {
     p->src = src;
     lexer_init(&p->lx, src);
     p->cur = lexer_next(&p->lx);
 }
 
+/*
+ * Exibe uma mensagem de erro sintático destacando a linha aproximada
+ * e a posição em que o problema foi encontrado.
+ */
 void parser_error_at(Parser *p, size_t pos, const char *msg) {
     size_t start = pos;
     size_t end = pos;
@@ -54,11 +70,18 @@ void parser_error_at(Parser *p, size_t pos, const char *msg) {
     exit(1);
 }
 
+/*
+ * Descarta o token atual e avança para o próximo token produzido pelo lexer.
+ */
 void advance(Parser *p) {
     token_free(&p->cur);
     p->cur = lexer_next(&p->lx);
 }
 
+/*
+ * Verifica se o token atual é o esperado. Caso não seja, interrompe a
+ * compilação com uma mensagem de erro sintático mais clara.
+ */
 void expect(Parser *p, TokenKind kind, const char *what) {
     if (p->cur.kind != kind) {
         char buf[160];
@@ -67,6 +90,10 @@ void expect(Parser *p, TokenKind kind, const char *what) {
     }
 }
 
+/*
+ * Faz uma leitura adiantada de um token sem consumir a entrada real.
+ * É útil para decidir entre variável, chamada de função e acesso a array.
+ */
 static TokenKind peek_kind(Parser *p) {
     Lexer temp_lx = p->lx;
     Token next = lexer_next(&temp_lx);
@@ -75,6 +102,10 @@ static TokenKind peek_kind(Parser *p) {
     return kind;
 }
 
+/*
+ * Reconhece expressões primárias: inteiros, booleanos, identificadores,
+ * chamadas de função, acesso a arrays e expressões entre parênteses.
+ */
 Expr *parse_prim(Parser *p) {
     if (p->cur.kind == TOK_INT) {
         long v = p->cur.int_value;
@@ -95,12 +126,17 @@ Expr *parse_prim(Parser *p) {
     if (p->cur.kind == TOK_IDENT) {
         char *name = p->cur.lexeme;
         p->cur.lexeme = NULL;
-        if (peek_kind(p) == TOK_LPAREN) {
+        
+        TokenKind next_k = peek_kind(p);
+        
+        if (next_k == TOK_LPAREN) {
             ExprList args;
             Expr *call_expr;
             expr_list_init(&args);
+            
             advance(p);
             advance(p);
+            
             if (p->cur.kind != TOK_RPAREN) {
                 while (1) {
                     expr_list_add(&args, parse_exp(p));
@@ -117,6 +153,21 @@ Expr *parse_prim(Parser *p) {
             free(name);
             free(args.items);
             return call_expr;
+            
+        } else if (next_k == TOK_LBRACKET) { 
+            Expr *arr_expr;
+            advance(p); 
+            advance(p);
+            
+            Expr *index = parse_exp(p);
+            
+            expect(p, TOK_RBRACKET, "']' fechando o índice do array");
+            advance(p);
+            
+            arr_expr = expr_array_access(name, index);
+            free(name);
+            return arr_expr;
+            
         } else {
             Expr *var_expr;
             advance(p);
@@ -143,6 +194,9 @@ Expr *parse_prim(Parser *p) {
     return NULL;
 }
 
+/*
+ * Trata operadores unários. Nesta linguagem, o parser dá suporte ao NOT.
+ */
 Expr *parse_exp_u(Parser *p) {
     if (p->cur.kind == TOK_NOT) {
         Expr *operand;
@@ -153,6 +207,9 @@ Expr *parse_exp_u(Parser *p) {
     return parse_prim(p);
 }
 
+/*
+ * Trata multiplicação e divisão, respeitando a precedência desses operadores.
+ */
 Expr *parse_exp_m(Parser *p) {
     Expr *left = parse_exp_u(p);
     while (p->cur.kind == TOK_OP_MUL || p->cur.kind == TOK_OP_DIV) {
@@ -165,6 +222,9 @@ Expr *parse_exp_m(Parser *p) {
     return left;
 }
 
+/*
+ * Trata soma e subtração, usando como base as expressões multiplicativas.
+ */
 Expr *parse_exp_a(Parser *p) {
     Expr *left = parse_exp_m(p);
     while (p->cur.kind == TOK_OP_ADD || p->cur.kind == TOK_OP_SUB) {
@@ -177,6 +237,9 @@ Expr *parse_exp_a(Parser *p) {
     return left;
 }
 
+/*
+ * Trata operadores de comparação como <, >, ==, <=, >= e !=.
+ */
 Expr *parse_exp_cmp(Parser *p) {
     Expr *left = parse_exp_a(p);
     while (p->cur.kind == TOK_OP_LT || p->cur.kind == TOK_OP_GT || p->cur.kind == TOK_OP_EQ ||
@@ -190,6 +253,9 @@ Expr *parse_exp_cmp(Parser *p) {
     return left;
 }
 
+/*
+ * Trata expressões booleanas ligadas por AND.
+ */
 Expr *parse_exp_and(Parser *p) {
     Expr *left = parse_exp_cmp(p);
     while (p->cur.kind == TOK_AND) {
@@ -201,6 +267,9 @@ Expr *parse_exp_and(Parser *p) {
     return left;
 }
 
+/*
+ * Trata expressões booleanas ligadas por OR, no nível mais alto.
+ */
 Expr *parse_exp_or(Parser *p) {
     Expr *left = parse_exp_and(p);
     while (p->cur.kind == TOK_OR) {
@@ -212,13 +281,19 @@ Expr *parse_exp_or(Parser *p) {
     return left;
 }
 
+/*
+ * Porta de entrada para o parsing de expressões completas.
+ */
 Expr *parse_exp(Parser *p) {
     return parse_exp_or(p);
 }
 
+/*
+ * Reconhece declarações de variável. Pode montar tanto variáveis comuns
+ * quanto declarações de arrays com tamanho fixo.
+ */
 VarDecl *parse_vardecl(Parser *p) {
     char *name;
-    Expr *value;
     VarDecl *vd;
     expect(p, TOK_VAR, "'var'");
     advance(p);
@@ -226,9 +301,31 @@ VarDecl *parse_vardecl(Parser *p) {
     name = p->cur.lexeme;
     p->cur.lexeme = NULL;
     advance(p);
+
+    if (p->cur.kind == TOK_LBRACKET) { 
+        size_t size;
+        advance(p);
+        
+        expect(p, TOK_INT, "tamanho inteiro do array");
+        size = (size_t)p->cur.int_value;
+        advance(p);
+        
+        expect(p, TOK_RBRACKET, "']'");
+        advance(p);
+        
+        expect(p, TOK_SEMI, "';'");
+        advance(p);
+        
+        vd = var_decl_array_new(name, size);
+        free(name);
+        return vd;
+    }
+
     expect(p, TOK_EQUAL, "'='");
     advance(p);
-    value = parse_exp(p);
+
+    Expr *value = parse_exp(p);
+
     expect(p, TOK_SEMI, "';'");
     advance(p);
     vd = var_decl_new(name, value);
@@ -236,6 +333,10 @@ VarDecl *parse_vardecl(Parser *p) {
     return vd;
 }
 
+/*
+ * Reconhece uma declaração de função completa: nome, parâmetros,
+ * variáveis locais, corpo e expressão final de retorno.
+ */
 Decl *parse_fundecl(Parser *p) {
     char *name;
     StringList params;
@@ -290,10 +391,17 @@ Decl *parse_fundecl(Parser *p) {
     return fun_decl;
 }
 
+/*
+ * Decide se a próxima declaração global é de variável ou de função.
+ */
 Decl *parse_decl(Parser *p) {
     if (p->cur.kind == TOK_VAR) {
         VarDecl *vd = parse_vardecl(p);
         Decl *d = decl_var_new(vd->name, vd->value);
+        
+        d->as.var_decl.is_array = vd->is_array;
+        d->as.var_decl.array_size = vd->array_size;
+
         free(vd->name);
         free(vd);
         return d;
@@ -305,17 +413,42 @@ Decl *parse_decl(Parser *p) {
     return NULL;
 }
 
+/*
+ * Reconhece comandos de atribuição, incluindo atribuição simples e
+ * atribuição em posição específica de arrays.
+ */
 static Cmd *parse_assign_cmd(Parser *p) {
     char *name;
-    Expr *value;
     Cmd *cmd;
     expect(p, TOK_IDENT, "identificador");
     name = p->cur.lexeme;
     p->cur.lexeme = NULL;
     advance(p);
+
+    if (p->cur.kind == TOK_LBRACKET) { 
+        advance(p);
+        Expr *index = parse_exp(p);
+        expect(p, TOK_RBRACKET, "']'");
+        advance(p);
+        
+        expect(p, TOK_EQUAL, "'='");
+        advance(p);
+        
+        Expr *value = parse_exp(p);
+        
+        expect(p, TOK_SEMI, "';'");
+        advance(p);
+        
+        cmd = cmd_array_assign(name, index, value);
+        free(name);
+        return cmd;
+    }
+
     expect(p, TOK_EQUAL, "'='");
     advance(p);
-    value = parse_exp(p);
+
+    Expr *value = parse_exp(p);
+
     expect(p, TOK_SEMI, "';'");
     advance(p);
     cmd = cmd_assign(name, value);
@@ -323,6 +456,10 @@ static Cmd *parse_assign_cmd(Parser *p) {
     return cmd;
 }
 
+/*
+ * Lê uma sequência de comandos até encontrar o token que fecha
+ * o bloco corrente, como } ou return.
+ */
 CmdList parse_cmd_block(Parser *p, TokenKind terminator) {
     CmdList list;
     cmd_list_init(&list);
@@ -335,6 +472,9 @@ CmdList parse_cmd_block(Parser *p, TokenKind terminator) {
     return list;
 }
 
+/*
+ * Reconhece um comando individual da linguagem: atribuição, if ou while.
+ */
 Cmd *parse_cmd(Parser *p) {
     if (p->cur.kind == TOK_IDENT) {
         return parse_assign_cmd(p);
@@ -385,6 +525,10 @@ Cmd *parse_cmd(Parser *p) {
     return NULL;
 }
 
+/*
+ * Constrói a AST do programa inteiro: declarações globais, bloco main,
+ * comandos do main e expressão final de retorno.
+ */
 Program *parse_program(const char *src) {
     Parser p;
     Program *program;
@@ -392,10 +536,12 @@ Program *parse_program(const char *src) {
     Expr *main_result;
     parser_init(&p, src);
     program = program_new();
+
     while (p.cur.kind == TOK_VAR || p.cur.kind == TOK_FUN) {
         program_add_decl(program, parse_decl(&p));
     }
-    expect(&p, TOK_MAIN, "'main' para iniciar o bloco principal");
+
+    expect(&p, TOK_MAIN, "'main' para iniciar o bloco principal"); 
     advance(&p);
     expect(&p, TOK_LBRACE, "'{' para iniciar o corpo do main");
     advance(&p);

@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ * Estruturas e função principal da análise semântica, etapa que verifica
+ * se os nomes e usos da AST fazem sentido além da sintaxe.
+ */
+
 #include "ast.h"
 
 /**
@@ -17,10 +22,12 @@ typedef enum {
 typedef struct {
     char *name;
     SymKind kind;
-    size_t arity;
+    size_t arity; 
+    int is_array;
 } Symbol;
 
 /**
+ * @brief Tabela de símbolos dinâmica.
  * @brief Tabela de símbolos dinâmica.
  */
 typedef struct {
@@ -29,4 +36,14 @@ typedef struct {
     size_t capacity;
 } SymbolTable;
 
+
+/**
+ * @brief Realiza a análise semântica do programa Fun.
+ *
+ * Verifica:
+ * - uso de variável antes da declaração (respeitando escopo local e global);
+ * - redeclaração de variáveis no mesmo escopo;
+ * - chamadas a funções não declaradas ou com número incorreto de argumentos;
+ * - se uma variável está tentando ser chamada como função ou vice-versa.
+ */
 void semantic_check_program(const Program *program);

@@ -1,0 +1,7 @@
+var arr[2];
+var x = 0;
+
+main {
+    x = arr + 1;
+    return x;
+}

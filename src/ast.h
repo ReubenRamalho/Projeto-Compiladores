@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ * Estruturas da AST (Árvore Sintática Abstrata) usadas pelo compilador
+ * para representar expressões, comandos, declarações e o programa final.
+ */
+
 #include <stddef.h>
 
 /**
@@ -36,7 +41,8 @@ typedef enum {
     EXPR_VAR,
     EXPR_BINOP,
     EXPR_UNOP,
-    EXPR_CALL
+    EXPR_CALL,
+    EXPR_ARRAY_ACCESS
 } ExprKind;
 
 struct Expr;
@@ -73,6 +79,10 @@ struct Expr {
             char *fun_name;
             ExprList args;
         } call;
+        struct {                  
+            char *array_name;
+            Expr *index;
+        } array_access;
     } as;
 };
 
@@ -82,6 +92,8 @@ struct Expr {
 typedef struct VarDecl {
     char *name;
     Expr *value;
+    int is_array;     
+    size_t array_size;
 } VarDecl;
 
 /**
@@ -108,7 +120,8 @@ typedef struct {
 typedef enum {
     CMD_ASSIGN,
     CMD_IF,
-    CMD_WHILE
+    CMD_WHILE,
+    CMD_ARRAY_ASSIGN
 } CmdKind;
 
 struct Cmd;
@@ -142,6 +155,11 @@ struct Cmd {
             Expr *condition;
             CmdList body;
         } while_cmd;
+        struct {            
+            char *name;
+            Expr *index;
+            Expr *value;
+        } array_assign;
     } as;
 };
 
@@ -191,6 +209,12 @@ Expr *expr_var(const char *name);
 Expr *expr_binop(BinOpKind op, Expr *left, Expr *right);
 Expr *expr_unop(UnOpKind op, Expr *operand);
 Expr *expr_call(const char *fun_name, const ExprList *args);
+
+Expr *expr_array_access(const char *name, Expr *index); // NOVO
+
+/**
+ * @brief Libera a memória de uma expressão
+ */
 void expr_free(Expr *e);
 
 void string_list_init(StringList *list);
@@ -198,6 +222,8 @@ void string_list_add(StringList *list, char *str);
 void string_list_free(StringList *list);
 
 VarDecl *var_decl_new(const char *name, Expr *value);
+
+VarDecl *var_decl_array_new(const char *name, size_t size);
 void var_decl_free(VarDecl *vd);
 void var_decl_list_init(VarDeclList *list);
 void var_decl_list_add(VarDeclList *list, VarDecl *vd);
@@ -207,6 +233,8 @@ void cmd_list_init(CmdList *list);
 void cmd_list_add(CmdList *list, Cmd *cmd);
 void cmd_list_free(CmdList *list);
 Cmd *cmd_assign(const char *name, Expr *value);
+
+Cmd *cmd_array_assign(const char *name, Expr *index, Expr *value);
 Cmd *cmd_if(Expr *condition, const CmdList *then_branch, const CmdList *else_branch);
 Cmd *cmd_while(Expr *condition, const CmdList *body);
 void cmd_free(Cmd *cmd);
